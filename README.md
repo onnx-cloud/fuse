@@ -10,7 +10,23 @@ Semantic types capture intent, ensuring safety, verifiability, and optimization.
 
 Bridges human intent and AI pipelines seamlessly, enabling cognitive computation end-to-end.
 
+## Canonical Example
 
+```fuse
+fn l1_score(x: <f32>[3]) -> <f32>[1] {
+  c: <f32>[3] = [0,0,0]
+  total = ReduceSum(Abs(Sub(x,c)), axes: <i64>[1]=[0], keepdims@=0)
+  Reshape(Div(1.0, Add(total,1.0)), [1])
+}
+
+@proof
+fn test_l1_score() -> <f32>[1] {
+    x: <f32>[3] = [0.0, 0.0, 0.0]
+    y = l1_score(x)
+    assert Equal(y, [1.0])
+    y
+}
+```
 
 ---
 
@@ -90,20 +106,3 @@ Bridges human intent and AI pipelines seamlessly, enabling cognitive computation
 
 ---
 
-## 8. Canonical Example
-
-```fuse
-fn l1_score(x: <f32>[3]) -> <f32>[1] {
-  c: <f32>[3] = [0,0,0]
-  total = ReduceSum(Abs(Sub(x,c)), axes: <i64>[1]=[0], keepdims@=0)
-  Reshape(Div(1.0, Add(total,1.0)), [1])
-}
-
-@proof
-fn test_l1_score() -> <f32>[1] {
-    x: <f32>[3] = [0.0, 0.0, 0.0]
-    y = l1_score(x)
-    Assert(Equal(y, [1.0]))
-    y
-}
-```
