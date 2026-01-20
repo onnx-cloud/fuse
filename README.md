@@ -1,6 +1,16 @@
-# Fuse — Graph-First Cognitive Architecture
+# Fuse — Graph-First Cognitive Coding
 
-**Goal:** Generate correct ONNX code and tests without Python.
+Write semantically typed programs that generate correct ONNX code and tests—no Python needed.
+
+Runs efficiently on `CPU and GPU`, leveraging zero-copy and persistent memory.
+
+Semantic types capture intent, ensuring safety, verifiability, and optimization.
+
+`.fuse` programs can reason about their own structure and data flow.
+
+Bridges human intent and AI pipelines seamlessly, enabling cognitive computation end-to-end.
+
+
 
 ---
 
