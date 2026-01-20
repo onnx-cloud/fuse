@@ -1,6 +1,6 @@
 # Fuse — Graph-First Cognitive Coding
 
-Write semantically typed programs that generate correct ONNX code and tests—no Python needed.
+Write semantically typed programs that generate correct ONNX code and tests.
 
 Runs efficiently on `CPU and GPU`, leveraging zero-copy and persistent memory.
 
