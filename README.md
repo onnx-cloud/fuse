@@ -2,17 +2,22 @@
 
 Write semantically typed programs that generate correct ONNX code and tests.
 
-Runs efficiently on `CPU and GPU`, leveraging zero-copy and persistent memory.
+**Friendly to human and AI, enabling end-to-end cognitive computation.**
+
+Once compiled to `.onnx` runs efficiently on `CPU and GPU`, leveraging zero-copy and persistent memory.
 
 Semantic types capture intent, ensuring safety, verifiability, and optimization.
 
 `.fuse` programs can reason about their own structure and data flow.
 
-Bridges human intent and AI pipelines seamlessly, enabling cognitive computation end-to-end.
-
 ## Canonical Example
 
 ```fuse
+@fuse 1.2
+@opset onnx 18
+@namespace examples
+@meta author="onnx.cloud"
+
 fn l1_score(x: <f32>[3]) -> <f32>[1] {
   c: <f32>[3] = [0,0,0]
   total = ReduceSum(Abs(Sub(x,c)), axes: <i64>[1]=[0], keepdims@=0)
