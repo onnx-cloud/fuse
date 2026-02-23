@@ -1,4 +1,4 @@
-# Loop/If/Scan Implementation Summary
+ */# Loop/If/Scan Implementation Summary
 
 ## Overview
 Successfully implemented inline block syntax for `loop`, `if`, and `scan` ONNX control flow operators in the Fuse DSL. The implementation allows direct embedding of control flow bodies as inline code blocks instead of requiring external function definitions.
