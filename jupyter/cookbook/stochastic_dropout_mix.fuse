@@ -1,0 +1,108 @@
+#
+# StochasticDropoutMix: Structured stochastic path selection
+#
+# Concept:
+#   Selects between two alternative computational paths (`path1`, `path2`) for
+#   each example in a batch, based on a random dropout mask. This introduces
+#   structured randomness, forcing the model to build robust, redundant features.
+#
+#   - Inputs:
+#     - `input`: The primary input tensor of shape `f32[N, dim]`.
+#     - `path1`: A subgraph (block) representing the first computational path.
+#     - `path2`: A subgraph (block) representing the second computational path.
+#     - `dropout_prob` (optional): The probability of selecting `path2`.
+#       Defaults to 0.5.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]`, where each row is the result of
+#       applying either `path1` or `path2` to the corresponding input row.
+#
+#   - Behavior:
+#     1. A random boolean mask is generated with the same batch size `N` as the
+#        input. The probability of a `true` value in the mask is determined by
+#        `dropout_prob`.
+#     2. The `path1` and `path2` blocks are executed on the input tensor.
+#     3. The `Where` operator selects elements from the output of `path2` where
+#        the mask is `true`, and from the output of `path1` where the mask is
+#        `false`.
+#
+# Example Use Case:
+#   - Internal ensembling for robustness: In a classification model, `path1`
+#     could be a standard convolutional layer, while `path2` could be a
+#     self-attention layer. `StochasticDropoutMix` would randomly choose which
+#     layer to use for each sample in the batch, creating an implicit ensemble
+#     of models and improving generalization.
+#
+fn StochasticDropoutMix(
+    input: f32[N, dim],
+    path1: block,  # block(f32[N, dim]) -> f32[N, dim]
+    path2: block,  # block(f32[N, dim]) -> f32[N, dim]
+    dropout_prob: f32 = 0.5
+) -> f32[N, dim] {
+    # Get the shape of the input tensor to determine the batch size N.
+    shape = Shape(input)
+    batch_size = Slice(shape, starts=[0], ends=[1])
+
+    # Generate a random boolean mask using the Dropout operator.
+    # Dropout returns the modified tensor and the mask. We only need the mask.
+    # The first output of Dropout is the tensor with zeros, the second is the mask.
+    _, mask = Dropout(input, ratio@=dropout_prob)
+
+    # Execute both computational paths on the input.
+    out1 = path1(input)
+    out2 = path2(input)
+
+    # Use the boolean mask to select between the outputs of the two paths.
+    # `Where(condition, X, Y)` is equivalent to `condition ? X : Y`.
+    output = Where(mask, out2, out1)
+    return output
+}
+
+# Define two simple computational paths for testing purposes.
+fn PathA(input: f32[N, dim]) -> f32[N, dim] {
+    # Path A: Doubles the input
+    return Mul(input, 2.0)
+}
+
+fn PathB(input: f32[N, dim]) -> f32[N, dim] {
+    # Path B: Halves the input
+    return Mul(input, 0.5)
+}
+
+@proof test_stochastic_dropout_mix_deterministic() {
+    # This proof uses a deterministic mask to verify the `Where` logic.
+    # In a real scenario, the mask from `Dropout` would be random.
+
+    input_tensor: f32[4, 2] = [
+        [1.0, 10.0],
+        [2.0, 20.0],
+        [3.0, 30.0],
+        [4.0, 40.0]
+    ]
+
+    # Manually create a boolean mask.
+    # Shape: [4, 2] to match the input tensor.
+    mask: bool[4, 2] = [
+        [true, false], # Select path B for 1st element, path A for 2nd
+        [false, true], # Select path A for 1st element, path B for 2nd
+        [true, true],  # Select path B for both
+        [false, false] # Select path A for both
+    ]
+
+    # Get the asserted outputs from each path.
+    output_A = PathA(input_tensor) # [[2, 20], [4, 40], [6, 60], [8, 80]]
+    output_B = PathB(input_tensor) # [[0.5, 5], [1, 10], [1.5, 15], [2, 20]]
+
+    # Use the `Where` operator to manually mix the results.
+    mixed_output = Where(mask, output_B, output_A)
+
+    # Define the asserted result based on the mask.
+    asserted_output: f32[4, 2] = [
+        [0.5, 20.0], # B, A
+        [4.0, 10.0], # A, B
+        [1.5, 15.0], # B, B
+        [8.0, 80.0]  # A, A
+    ]
+
+    assert_close(mixed_output, asserted_output)
+}

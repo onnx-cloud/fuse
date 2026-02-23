@@ -1,0 +1,46 @@
+name: ORT Web Bundle CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  install-and-test:
+    runs-on: ubuntu-latest
+    env:
+      ORT_WEB_TAG: v1.23.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install deps
+        run: |
+          python -m uv pip install --upgrade pip
+          uv pip install -r requirements-dev.txt
+
+      - name: Install ORT Web runtime (pinned tag)
+        run: |
+          ./scripts/install_ort_web.sh --tag "$ORT_WEB_TAG"
+
+      - name: Run install unit tests (non-network)
+        run: pytest tests/test_ort_web_output.py -q
+
+      - name: Run network tests (fetch latest release metadata)
+        env:
+          SKIP_NETWORK_TESTS: ''
+        run: pytest tests/test_ort_web_fetch_latest.py -q || true
+
+      - name: Run Node smoke test (requires node and vendored runtime)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Run node tests
+        run: |
+          pytest tests/test_ort_web_node_smoke.py -q

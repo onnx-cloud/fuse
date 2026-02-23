@@ -1,0 +1,10 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain conv_unknown_attr
+
+fn conv_bad(x: f32[1, 28, 28], w: f32[64, 3, 7, 7]) -> f32[64, 22, 22] {
+  # Unknown attribute name 'wrong' should trigger a lowering-time hint
+  y = Conv(x, w, wrong@=2)
+  y
+}

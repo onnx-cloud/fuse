@@ -1,0 +1,37 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "fuse"
+@meta tags = ["meta","note","ops"]
+
+fn relu_twice(x: f32[4] @meta is="input") -> f32[4] @meta is="output" {
+  @note "first relu"
+  y = Relu(x)
+  @note "second relu"
+  z = Relu(y)
+  z
+}
+
+@proof graph test_relu_twice() {
+  input = [-1.0, 0.0, 1.0, 2.0]
+  output = relu_twice(input)
+  assert output == [0.0, 0.0, 1.0, 2.0]
+}
+
+fn matmul2x2_flat(a: f32[4], b: f32[4]) -> f32[4] {
+  shape: i64[2] = [2, 2]
+  flat: i64[1] = [4]
+  A = Reshape(a, shape)
+  B = Reshape(b, shape)
+  Y = MatMul(A, B)
+  Reshape(Y, flat)
+}
+
+@proof graph test_matmul_2x2_flat() {
+  a = [1.0, 2.0, 3.0, 4.0]
+  b = [5.0, 6.0, 7.0, 8.0]
+  y = matmul2x2_flat(a, b)
+  # a=[[1,2],[3,4]] b=[[5,6],[7,8]] => [[19,22],[43,50]]
+  assert y == [19.0, 22.0, 43.0, 50.0]
+}

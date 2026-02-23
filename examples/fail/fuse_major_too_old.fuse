@@ -1,0 +1,4 @@
+# Fail case: demonstrates an incompatible (too-old) @fuse version that should trigger an error
+@fuse 0.5.0
+
+fn f(x: f32[1]) -> f32[1] { x }

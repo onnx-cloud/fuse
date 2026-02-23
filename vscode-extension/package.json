@@ -1,0 +1,51 @@
+{
+  "name": "onxx-fuse-dsl",
+  "displayName": "Fuse (ONNX DSL)",
+  "description": "Syntax highlighting and snippets for the Fuse ONNX DSL",
+  "version": "0.7.0",
+  "publisher": "fuse",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "fuse",
+        "aliases": ["Fuse", "fuse"],
+        "extensions": [".fuse"],
+        "configuration": "language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "fuse",
+        "scopeName": "source.fuse",
+        "path": "syntaxes/fuse.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "fuse",
+        "path": "snippets/fuse.json"
+      }
+    ]
+    ,
+    "configuration": {
+      "type": "object",
+      "title": "Fuse",
+      "properties": {
+        "fuse.languageServerCommand": {
+          "type": "string",
+          "default": "",
+           "description": "Optional override for the Fuse language server command. Leave empty to use the bundled `fuse-lsp` binary when available."
+        }
+      }
+    }
+  }
+  ,
+  "activationEvents": ["onLanguage:fuse"],
+  "main": "./client/extension.js"
+}

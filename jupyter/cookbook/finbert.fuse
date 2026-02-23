@@ -1,0 +1,57 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+@meta author = "onnx.cloud"
+
+@import nlp.finbert @1.0 as FinBert from "hf://Xenova/finbert/blob/main/onnx/model_q4f16.onnx"
+
+weight W_sentiment: f32[64,3] = randn(64,3)
+weight b_sentiment: f32[3] = zeros(3)
+
+weight W_risk: f32[64,3] = randn(64,3)
+weight b_risk: f32[3] = zeros(3)
+
+weight W_event: f32[64,3] = randn(64,3)
+weight b_event: f32[3] = zeros(3)
+
+weight W_att: f32[64,64] = randn(64,64)
+weight b_att: f32[64] = zeros(64)
+
+# Inputs
+# - input_ids, attention_mask: text tokens
+# - numeric: financial features [B,10]
+# - temporal: time-series signals [B,5]
+
+graph classify_dashboard(
+    input_ids: i32[1,32],
+    attention_mask: i32[1,32],
+    numeric: f32[1,10],
+    temporal: f32[1,5]
+) -> f32[3,3] {
+
+  # 1. Extract FinBERT hidden states (last layer)
+  text_hidden: f32[1,32,64] = FinBert(input_ids, attention_mask, output_hidden_states=true)
+
+  # 2. Pool across sequence using attention
+  att_weights = softmax(matmul(text_hidden, W_att) + b_att, axis=1)   # [1,32,64]
+  text_pooled = sum(att_weights * text_hidden, axis=1)                 # [1,64]
+
+  # 3. Fuse text + numeric + temporal
+  fused = concat([text_pooled, numeric, temporal], axis=1)             # [1,79]
+
+  # 4. Multi-head task-specific layers
+  head_sentiment = matmul(fused, W_sentiment) + b_sentiment
+  head_risk      = matmul(fused, W_risk) + b_risk
+  head_event     = matmul(fused, W_event) + b_event
+
+  # 5. Apply softmax to each head
+  head_sentiment = softmax(head_sentiment)
+  head_risk      = softmax(head_risk)
+  head_event     = softmax(head_event)
+
+  # 6. Stack heads for dashboard output
+  dashboard = stack([head_sentiment, head_risk, head_event], axis=0)  # [3,3]
+
+  dashboard
+}

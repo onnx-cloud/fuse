@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-lint-json-schema
+        name: Check lint JSON schema
+        entry: bash scripts/check_lint_json_schema.sh
+        language: script
+        files: ''
+      - id: check-opcodes-checksum
+        name: Check OpCodes checksum
+        entry: bash scripts/check_opcodes_checksum.sh
+        language: script
+        files: ''

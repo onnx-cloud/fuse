@@ -1,0 +1,81 @@
+#
+# HypotheticalResidual: Residual fn applied on counterfactual inputs.
+#
+# Motivation:
+#   This fn combines the ideas of `HypotheticalEmbedding` and `MetaResidual`.
+#   It's designed for counterfactual reasoning where we want to know how a system
+#   would evolve from a hypothetical starting point. It allows a model to apply a
+#   learned transformation (the residual block) to a "what-if" input, and then
+#   blend that result with the original hypothetical input.
+#
+# Concept:
+#   This fn takes two inputs: a "real" input and a "hypothetical" input. It
+#   applies a prediction function (a residual block) to the hypothetical input
+#   and then adds the result back to the hypothetical input.
+#
+#   - Inputs:
+#     - `real_input`: The observed state, shape `f32[N, dim]`.
+#     - `hypothetical_input`: The counterfactual state, shape `f32[N, dim]`.
+#     - `pred_node`: A subgraph that computes a residual update.
+#
+#   - Output:
+#     - The evolved hypothetical state, shape `f32[N, dim]`.
+#
+# Formalism:
+#   Let `X_real` be the real input and `X_hypo` be the hypothetical input.
+#   The prediction function `f_pred` computes a residual update `ΔX_hypo` based
+#   on the hypothetical input.
+#
+#   ΔX_hypo = f_pred(X_hypo)
+#
+#   The final output `Y_hypo` is the original hypothetical state plus the
+#   predicted residual update.
+#
+#   Y_hypo = X_hypo + ΔX_hypo
+#
+fn HypotheticalResidual(
+    real_input: f32[N, dim],
+    hypothetical_input: f32[N, dim],
+    pred_node: fn  # block(f32[N, dim]) -> f32[N, dim]
+) -> (output: f32[N, dim]) {
+    # 1. Compute the residual update by applying the prediction function
+    #    to the hypothetical input.
+    residual_update = pred_node(hypothetical_input)
+
+    # 2. Add the residual update to the original hypothetical input.
+    output = Add(hypothetical_input, residual_update)
+    return output
+}
+
+# --- Proofs ---
+
+# A simple prediction function that just scales the input by 0.5.
+fn ScalingPrednode(input: f32[N, dim]) -> (f32[N, dim]) {
+    return Mul(input, 0.5)
+}
+
+@proof test_hypothetical_residual() {
+    # The "real" input isn't used in the block's logic, but is part of the
+    # conceptual signature.
+    real: f32[2, 2] = [[0,0], [0,0]]
+
+    # The hypothetical starting point.
+    hypo: f32[2, 2] = [
+        [10.0, 20.0],
+        [-5.0, 0.0]
+    ]
+
+    # Run the block.
+    result = HypotheticalResidual(real, hypo, ScalingPrednode)
+
+    # asserted output: hypo + pred_node(hypo)
+    # pred_node(hypo) = hypo * 0.5 = [[5, 10], [-2.5, 0]]
+    # result = [[10, 20], [-5, 0]] + [[5, 10], [-2.5, 0]]
+    #        = [[15, 30], [-7.5, 0]]
+    asserted: f32[2, 2] = [
+        [15.0, 30.0],
+        [-7.5, 0.0]
+    ]
+
+    assert_close(result, asserted)
+}

@@ -1,0 +1,106 @@
+#
+# GraphRelational: Abstract message passing on arbitrary graphs.
+#
+# Motivation:
+#   This fn is a more general and powerful version of `GraphPropagate`. While
+#   `GraphPropagate` performs a simple linear aggregation of neighbor features,
+#   `GraphRelational` implements the full "message passing" paradigm of modern
+#   Graph Neural Networks (GNNs). This allows for much more expressive models
+#   that can learn complex relationships and transformations on graph data.
+#
+# Concept:
+#   A GNN layer updates each node's representation by:
+#   1. **Message Creation:** For each node, a "message" is created based on its
+#      own features and the features of its neighbors.
+#   2. **Aggregation:** Each fn aggregates the messages sent from its neighbors.
+#   3. **Update:** Each fn updates its own feature vector based on the aggregated
+#      message and its previous feature vector.
+#
+#   - Inputs:
+#     - `node_features`: Tensor of shape `f32[N, node_dim]`.
+#     - `edge_features`: Tensor of shape `f32[E, edge_dim]`, where `E` is the
+#       number of edges.
+#     - `adjacency`: Connectivity information (e.g., an edge index tensor).
+#
+#   - Output:
+#     - Updated fn features, shape `f32[N, node_dim]`.
+#
+# Formalism:
+#   A common GNN formulation (like Graph Attention Networks or GCNs) can be
+#   expressed as:
+#
+#   m_ij = message_node(h_i, h_j, e_ij)
+#   M_i = aggregate_node({m_ij for j in neighbors(i)})
+#   h'_i = update_node(h_i, M_i)
+#
+#   where `h_i` is the feature for fn `i`, `e_ij` is the feature for the edge
+#   between `i` and `j`, and `m_ij` is the message. This fn is a high-level
+#   concept; a concrete ONNX implementation would be very complex, often
+#   requiring custom operators or extensive use of `Gather` and `Scatter` to
+#   handle the irregular graph connectivity.
+#
+#   This example shows a simplified version (a GCN layer) where messages are
+#   just transformed fn features, and aggregation is a weighted sum defined
+#   by the normalized adjacency matrix.
+#
+fn GraphRelational(
+    node_features: f32[N, dim],
+    norm_adjacency: f32[N, N]
+) -> (f32[N, dim]) {
+    # This implements a single Graph Convolutional Network (GCN) layer.
+
+    # 1. Learnable linear transformation of fn features.
+    W = param(shape=[dim, dim], init="glorot_uniform")
+    transformed_features = MatMul(node_features, W)
+
+    # 2. Propagate/aggregate features using the normalized adjacency matrix.
+    # This is the core message passing step.
+    aggregated_features = MatMul(norm_adjacency, transformed_features)
+
+    # 3. Apply a non-linear activation function (update step).
+    updated_features = Relu(aggregated_features)
+    return updated_features
+}
+
+# --- Proofs ---
+
+@proof test_graph_relational_gcn_layer() {
+    # fn features.
+    features: f32[3, 2] = [
+        [1.0, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0]
+    ]
+
+    # For the proof, let's assume the weight matrix W is the identity matrix.
+    # So, transformed_features = features.
+
+    # A normalized adjacency matrix (e.g., with self-loops and symmetric normalization).
+    adj: f32[3, 3] = [
+        [0.5, 0.5, 0.0],
+        [0.5, 0.5, 0.0],
+        [0.0, 0.0, 1.0]
+    ]
+
+    # Manually run the GCN logic.
+    # 1. Transform (identity in this case)
+    transformed = features
+
+    # 2. Aggregate
+    aggregated = MatMul(adj, transformed)
+    # row1 = 0.5*[1,0] + 0.5*[0,1] = [0.5, 0.5]
+    # row2 = 0.5*[1,0] + 0.5*[0,1] = [0.5, 0.5]
+    # row3 = 1.0*[1,1] = [1.0, 1.0]
+    # aggregated = [[0.5, 0.5], [0.5, 0.5], [1.0, 1.0]]
+
+    # 3. Update (ReLU)
+    result = Relu(aggregated)
+
+    asserted: f32[3, 2] = [
+        [0.5, 0.5],
+        [0.5, 0.5],
+        [1.0, 1.0]
+    ]
+
+    assert_close(result, asserted)
+}

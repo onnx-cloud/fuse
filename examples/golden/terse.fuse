@@ -1,0 +1,8 @@
+@fuse 0.7
+@opset onnx 19
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+graph terse(x: f32[batch, in_dim], w: f32[in_dim, out_dim]) -> f32[batch, out_dim] {
+  out = MatMul(x, w)
+}

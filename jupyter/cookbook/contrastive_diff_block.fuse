@@ -1,0 +1,68 @@
+#
+# ContrastiveDiffBlock: Computes contrastive difference between inputs or embeddings.
+#
+# Motivation:
+#   Self-supervised learning aims to learn meaningful representations from data
+#   without explicit labels. A powerful technique for this is contrastive
+#   learning, where a model is trained to pull "similar" (positive) pairs of
+#   samples closer together in an embedding space, while pushing "dissimilar"
+#   (negative) pairs apart. This fn is a core component of such a system,
+#   calculating the difference or distance between pairs of embeddings.
+#
+# Concept:
+#   This fn takes two tensors (e.g., an "anchor" and a "positive" or "negative"
+#   sample) and computes their difference. This difference vector can then be
+#   used in a loss function (like Triplet Loss or NCE Loss) to train the model.
+#
+#   - Inputs:
+#     - `input1`: A tensor of shape `f32[N, dim]`.
+#     - `input2`: A tensor of shape `f32[N, dim]`.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` representing the element-wise difference
+#       between `input1` and `input2`.
+#
+# Formalism:
+#   The output `Y` is the element-wise subtraction of the two input tensors `X1`
+#   and `X2`.
+#
+#   Y = X1 - X2
+#
+#   Often, the L1 or L2 norm of this difference vector is then computed to get a
+#   scalar distance, but this fn only computes the difference vector itself.
+#
+fn ContrastiveDiffBlock(
+    input1: f32[N, dim],
+    input2: f32[N, dim]
+) -> f32[N, dim] {
+    # Simply compute the element-wise difference between the two inputs.
+    difference = Sub(input1, input2)
+    return difference
+}
+
+# --- Proofs ---
+
+@proof test_contrastive_diff() {
+    # An "anchor" sample.
+    anchor: f32[2, 4] = [
+        [1.0, 2.0, 3.0, 4.0],
+        [10.0, 10.0, 10.0, 10.0]
+    ]
+
+    # A "positive" sample, which should be close to the anchor.
+    positive: f32[2, 4] = [
+        [1.1, 2.2, 2.9, 4.1],
+        [10.0, 10.0, 10.0, 10.0]
+    ]
+
+    # Run the block.
+    result = ContrastiveDiffBlock(anchor, positive)
+
+    # asserted output is the element-wise difference.
+    asserted: f32[2, 4] = [
+        [-0.1, -0.2, 0.1, -0.1],
+        [0.0, 0.0, 0.0, 0.0]
+    ]
+
+    assert_close(result, asserted, atol=1e-6)
+}

@@ -1,0 +1,25 @@
+# Cookbook: PCA reconstruction using identity projection (reproject to original space)
+# Ops: Reshape, MatMul, Transpose, Reshape (uses INT64 shape tensors)
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+# Simple PCA reconstruction example using orthonormal projection (here identity)
+fn pca_reconstruct(x: f32[3]) -> f32[3] {
+  # Projection matrix (identity for simplicity)
+  P: f32[3,3] = [1.0,0.0,0.0, 0.0,1.0,0.0, 0.0,0.0,1.0]
+    shape_row: i64[2] = [1, 3]
+    shape_vec: i64[1] = [3]
+    A = Reshape(x, shape_row)
+  Y = MatMul(A, P)
+  Recon = MatMul(Y, Transpose(P))
+    Reshape(Recon, shape_vec)
+}
+
+@proof graph test_pca_reconstruct_identity() {
+  input = [1.0, -1.0, 0.5]
+  out = pca_reconstruct(input)
+  assert out == [1.0, -1.0, 0.5]
+}

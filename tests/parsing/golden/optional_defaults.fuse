@@ -1,0 +1,9 @@
+fn f(x: f32 = 1.0, y: i32 = 2) -> f32 { return x }
+
+fn iftest(cond: bool) {
+  static if cond {
+    return 1
+  } else {
+    return 2
+  }
+}

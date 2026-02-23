@@ -1,0 +1,18 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+# Demonstrates symbolic dims (N) and typed axes
+
+fn dynamic_sum(x: f32[N]) -> f32[1] {
+  axes: i64[1] = [0]
+  total = ReduceSum(x, axes, keepdims@=0)
+  shape_one: i64[1] = [1]
+  Reshape(total, shape_one)
+}
+
+@proof graph test_dynamic() {
+  out = dynamic_sum([1.0, 1.0])
+  assert out == [2.0]
+}

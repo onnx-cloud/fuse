@@ -1,0 +1,243 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fuse AST Schema",
+  "description": "A compact JSON Schema describing the AST produced by src/parser.py (Fuse language).",
+  "type": "array",
+  "items": { "$ref": "#/definitions/decl" },
+  "definitions": {
+    "decl": {
+      "oneOf": [
+        { "$ref": "#/definitions/meta" },
+        { "$ref": "#/definitions/import_decl" },
+        { "$ref": "#/definitions/param_decl" },
+        { "$ref": "#/definitions/const_decl" },
+        { "$ref": "#/definitions/node_decl" },
+        { "$ref": "#/definitions/model_decl" },
+        { "$ref": "#/definitions/export_decl" },
+        { "$ref": "#/definitions/test_decl" },
+        { "$ref": "#/definitions/type_alias" }
+      ]
+    },
+
+    "meta": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "meta" },
+        "name": { "type": "string" },
+        "value": {},
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "value"],
+      "additionalProperties": true
+    },
+
+    "variant": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "file": { "type": "string" },
+        "default": { "type": "boolean" }
+      },
+      "required": ["name", "file"],
+      "additionalProperties": true
+    },
+
+    "import_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "import" },
+        "name": { "type": "string" },
+        "version": { "type": "number" },
+        "alias": { "type": "string" },
+        "variants": { "type": "array", "items": { "$ref": "#/definitions/variant" } },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "version"],
+      "additionalProperties": true
+    },
+
+    "param_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "param" },
+        "name": { "type": "string" },
+        "type_decl": { "$ref": "#/definitions/type_expr" },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "type_decl"],
+      "additionalProperties": true
+    },
+
+    "const_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "const" },
+        "name": { "type": "string" },
+        "type_decl": { "$ref": "#/definitions/type_expr" },
+        "value": {},
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "type_decl", "value"],
+      "additionalProperties": true
+    },
+
+    "node_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "fn" },
+        "name": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/definitions/param" } },
+        "ret_type": { "$ref": "#/definitions/type_expr" },
+        "body": { "type": "array", "items": { "$ref": "#/definitions/stmt_or_expr" } },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "params", "body"],
+      "additionalProperties": true
+    },
+
+    "model_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "model" },
+        "name": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/definitions/param" } },
+        "ret_type": { "$ref": "#/definitions/type_expr" },
+        "body": { "type": "array", "items": { "$ref": "#/definitions/stmt_or_expr" } },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "params", "body"],
+      "additionalProperties": true
+    },
+
+    "export_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "export" },
+        "name": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/definitions/param" } },
+        "ret_type": { "$ref": "#/definitions/type_expr" },
+        "body": { "type": "array", "items": { "$ref": "#/definitions/stmt_or_expr" } },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "params", "body"],
+      "additionalProperties": true
+    },
+
+    "type_alias": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "type_alias" },
+        "name": { "type": "string" },
+        "type_decl": { "$ref": "#/definitions/type_expr" },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "type_decl"],
+      "additionalProperties": true
+    },
+
+    "test_decl": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "proof" },
+        "name": { "type": "string" },
+        "params": { "type": "array", "items": { "$ref": "#/definitions/param" } },
+        "ret_type": { "$ref": "#/definitions/type_expr" },
+        "body": { "type": "array", "items": { "$ref": "#/definitions/stmt_or_expr" } },
+        "@id": { "type": ["string", "null"] }
+      },
+      "required": ["type", "name", "body"],
+      "additionalProperties": true
+    },
+
+    "param": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/type_expr" },
+        "value": {}
+      },
+      "required": ["name"],
+      "additionalProperties": true
+    },
+
+    "stmt_or_expr": {
+      "oneOf": [
+        { "$ref": "#/definitions/let_stmt" },
+        { "$ref": "#/definitions/assign_stmt" },
+        { "$ref": "#/definitions/assert_stmt" },
+        { "$ref": "#/definitions/assert_stmt" },
+        { "$ref": "#/definitions/doc_stmt" },
+        { "$ref": "#/definitions/annot_stmt" },
+        { "$ref": "#/definitions/expr" }
+      ]
+    },
+
+    "let_stmt": {
+      "type": "object",
+      "properties": { "let": { "type": "string" }, "expr": { "$ref": "#/definitions/expr" } },
+      "required": ["let", "expr"],
+      "additionalProperties": false
+    },
+
+    "assign_stmt": {
+      "type": "object",
+      "properties": { "assign": { "type": "string" }, "type": { "$ref": "#/definitions/type_expr" }, "expr": { "$ref": "#/definitions/expr" } },
+      "required": ["assign", "type", "expr"],
+      "additionalProperties": false
+    },
+
+    "assert_stmt": {
+      "type": "object",
+      "properties": { "assert": { "$ref": "#/definitions/expr" } },
+      "required": ["assert"]
+    },
+
+    "assert_stmt": {
+      "type": "object",
+      "properties": { "assert": { "type": "object", "properties": { "left": { "$ref": "#/definitions/expr" }, "right": { "$ref": "#/definitions/expr" } }, "required": ["left", "right"] } },
+      "required": ["assert"]
+    },
+
+    "doc_stmt": { "type": "object", "properties": { "note": { "type": "string" } }, "required": ["note"] },
+    "annot_stmt": { "type": "object", "properties": { "annot": { "type": "string" }, "value": {} }, "required": ["annot", "value"] },
+
+    "expr": {
+      "oneOf": [
+        { "$ref": "#/definitions/call" },
+        { "$ref": "#/definitions/infix" },
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "$ref": "#/definitions/list_lit" }
+      ]
+    },
+
+    "call": {
+      "type": "object",
+      "properties": { "call": { "type": "string" }, "args": { "type": "array", "items": {} } },
+      "required": ["call"]
+    },
+
+    "infix": {
+      "type": "object",
+      "properties": { "left": { "$ref": "#/definitions/expr" }, "ops": { "type": "array", "items": { "type": "object", "properties": { "op": { "type": "string" }, "right": { "$ref": "#/definitions/expr" } }, "required": ["op", "right"] } } },
+      "required": ["left", "ops"]
+    },
+
+    "list_lit": { "type": "object", "properties": { "lit_list": { "type": "array", "items": {} } }, "required": ["lit_list"] },
+
+    "type_expr": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object", "properties": { "type": { "const": "tensor" }, "scalar": { "type": "string" }, "dims": { "type": "array", "items": { "$ref": "#/definitions/dim" } } }, "required": ["type", "scalar", "dims"] }
+      ]
+    },
+
+    "dim": {
+      "oneOf": [
+        { "type": "integer" },
+        { "type": "string" }
+      ]
+    }
+  }
+}

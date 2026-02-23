@@ -1,0 +1,69 @@
+#
+# MetaScaling: Learns per-feature scaling dynamically.
+#
+# Motivation:
+#   This fn is a synonym for `AdaptivePrecision`. Different features in a
+#   dataset can have vastly different scales and importance. Instead of using a
+#   fixed, handcrafted scaling factor for each feature, MetaScaling allows the
+#   model to learn the optimal scaling for each feature dynamically, based on the
+#   input itself. This is a form of feature conditioning or modulation.
+#
+# Concept:
+#   This fn generates a per-feature scaling factor from the input and then
+#   multiplies the input by these factors.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `scale_node`: A subgraph that takes the input and generates a scaling
+#       vector of shape `f32[N, dim]`.
+#
+#   - Output:
+#     - The scaled tensor, shape `f32[N, dim]`.
+#
+# Formalism:
+#   1. A scaling tensor `S` is generated: `S = scale_node(input)`.
+#   2. The output `Y` is the element-wise product of the input `X` and the
+#      scaling tensor `S`.
+#
+#      Y = X * S
+#
+fn MetaScaling(
+    input: f32[N, dim],
+    scale_node: block(f32[N, dim]) -> f32[N, dim]
+) -> f32[N, dim] {
+    # 1. Generate the dynamic scaling factors.
+    scaling_factors = scale_node(input)
+
+    # 2. Apply the scaling factors.
+    output = Mul(input, scaling_factors)
+    return output
+} 
+
+# --- Proofs ---
+
+# A simple scaling function that scales features based on their own value.
+# For example, scale = input / 10.
+fn SimpleScalenode(input: f32[N, dim]) -> f32[N, dim] {
+    return Div(input, 10.0)
+}
+
+@proof test_meta_scaling() {
+    input_data: f32[2, 3] = [
+        [1.0, 5.0, 10.0],
+        [20.0, 0.0, -5.0]
+    ]
+
+    # Run the block.
+    result = MetaScaling(input_data, SimpleScalenode)
+
+    # asserted output: input * scale_node(input) = input * (input / 10)
+    //
+    # Row 1: [1*0.1, 5*0.5, 10*1.0] = [0.1, 2.5, 10.0]
+    # Row 2: [20*2.0, 0*0.0, -5*-0.5] = [40.0, 0.0, 2.5]
+    asserted: f32[2, 3] = [
+        [0.1, 2.5, 10.0],
+        [40.0, 0.0, 2.5]
+    ]
+
+    assert_close(result, asserted)
+}

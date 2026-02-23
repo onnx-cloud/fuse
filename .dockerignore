@@ -1,0 +1,80 @@
+# Docker build optimization - exclude files that aren't needed in the image
+# This speeds up the build context transfer and reduces layer sizes
+
+# Python cache and bytecode
+.venv/
+venv/
+ENV/
+env/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+.eggs/
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker and CI
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter checkpoints (these regenerate, no need in image)
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Environment and secrets
+.env
+.env.local
+*.local
+
+# Development artifacts
+.mypy_cache/
+*.prof
+benchmark/
+
+# Node (frontend built in multi-stage)
+node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+
+# Large files not needed in container
+weights/
+*.onnx
+*.pb
+*.pth
+*.pt
+*.h5
+*.ckpt
+
+# Documentation build artifacts
+docs/_build/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Misc
+Thumbs.db

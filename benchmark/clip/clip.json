@@ -1,0 +1,17 @@
+{
+  "fuse": {
+    "bytes": 2399,
+    "decl_count": 27,
+    "lines": 92,
+    "path": "examples/golden/clip.fuse"
+  },
+  "name": "clip",
+  "python": {
+    "ast_nodes": 2190,
+    "bytes": 8513,
+    "func_count": 7,
+    "import_count": 3,
+    "lines": 197,
+    "path": "examples/golden/clip.py"
+  }
+}

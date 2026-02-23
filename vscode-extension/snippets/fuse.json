@@ -1,0 +1,50 @@
+{
+  "Function": {
+    "prefix": "node",
+    "body": [
+      "node ${1:name}(${2:arg}: ${3:<f32>[1]}) -> ${4:<f32>[1]} {",
+      "  $0",
+      "}"
+    ],
+    "description": "Function declaration"
+  },
+  "Graph": {
+    "prefix": "graph",
+    "body": [
+      "graph ${1:name}(${2:arg}: ${3:<f32>[1]}) -> ${4:<f32>[1]} {",
+      "  $0",
+      "}"
+    ],
+    "description": "Graph declaration (alias of model)"
+  },
+  "Model": {
+    "prefix": "model",
+    "body": [
+      "model ${1:name}(${2:arg}: ${3:<f32>[1]}) -> ${4:<f32>[1]} {",
+      "  $0",
+      "}"
+    ],
+    "description": "Model declaration"
+  },
+  "Param": {
+    "prefix": "param",
+    "body": [
+      "param ${1:name}: ${2:<f32>[64,3,7,7]}"
+    ],
+    "description": "Parameter declaration"
+  },
+  "Weight": {
+    "prefix": "weight",
+    "body": [
+      "weight ${1:name}: ${2:<f32>[64,3,7,7]}"
+    ],
+    "description": "Parameter/weight declaration (alias of param)"
+  },
+  "Const": {
+    "prefix": "const",
+    "body": [
+      "const ${1:name}: ${2:f32} = ${3:1e-5}"
+    ],
+    "description": "Constant declaration"
+  }
+}

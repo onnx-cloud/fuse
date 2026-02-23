@@ -1,0 +1,27 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@id "https://onnx.cloud/examples.golden.model.training"
+
+
+@train weight W: f32[2,2] = [[1.0,0.0],[0.0,1.0]]
+@frozen const B: f32 = 0.1
+
+@training { optimizer = Adam, lr = 1e-3 }
+graph training(x: f32[2]) -> f32[2] {
+  y = MatMul(x, W)
+  out = Add(y, B)
+}
+
+@proof graph test_training_example() {
+  x: f32[2] = [1.0, 2.0]
+  out = training(x)
+  assert out == [1.1, 2.1]
+}
+
+@golden @proof golden() {
+  x: f32[2] = [1.0, 2.0]
+  out = training(x)
+  assert out == [1.1, 2.1]
+}

@@ -1,0 +1,10 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain conv_attr_type_float
+
+fn conv_bad(x: f32[1, 28, 28], w: f32[64, 3, 7, 7]) -> f32[64, 22, 22] {
+  # stride asserts integer(s), float should produce a helpful type hint
+  y = Conv(x, w, strides@=1.5)
+  y
+}

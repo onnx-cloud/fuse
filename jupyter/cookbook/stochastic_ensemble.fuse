@@ -1,0 +1,82 @@
+#
+# StochasticEnsemble: Computes multiple stochastic paths and merges outputs.
+#
+# Motivation:
+#   Ensembling, or combining the predictions of multiple models, is a powerful
+#   technique for improving accuracy and robustness. A stochastic ensemble creates
+#   this diversity not by training separate models, but by introducing randomness
+#   within a single model. It runs the same input through the model multiple times,
+#   with different random seeds or dropout masks, to generate a variety of outputs.
+#   These outputs can then be averaged or combined to produce a more reliable result.
+#
+# Concept:
+#   This fn runs a stochastic "path" function multiple times on the same input.
+#   Each run will produce a different result due to the randomness inside the path
+#   function (e.g., from `Dropout` or `RandomNormal` operators). The results from
+#   all paths are then aggregated (e.g., by averaging) to produce the final output.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `stochastic_path`: A subgraph (block) that contains stochastic operators.
+#     - `path_count`: The number of times to run the stochastic path.
+#
+#   - Output:
+#     - An aggregated tensor of shape `f32[N, dim]`.
+#
+# Formalism:
+#   This requires a `Loop` operator to run the `stochastic_path` `path_count` times.
+#   1. Initialize an accumulator tensor `S` to zeros.
+#   2. Loop from `i = 1` to `path_count`:
+#      a. Run the stochastic path: `O_i = stochastic_path(input)`. Each `O_i` will
+#         be different due to randomness.
+#      b. Add the result to the accumulator: `S = S + O_i`.
+#   3. After the loop, compute the average: `Y = S / path_count`.
+#
+fn StochasticEnsemble(
+    input: f32[N, dim],
+    stochastic_path: subgraph,
+    path_count: i64
+) -> (aggregated_output: f32[N, dim]) {
+    # This is a conceptual implementation. A real ONNX implementation requires
+    # the `Loop` operator. The body of the loop would call the `stochastic_path`
+    # and accumulate the results.
+
+    # Initial state for the loop's accumulator.
+    initial_sum = Zeros<like=input>()
+    condition = Constant(value_bool=true)
+
+    # Define the body of the loop.
+    # It takes the iteration number and the current sum, calls the stochastic
+    # path, and returns the updated sum.
+    body<
+        iter: i64,
+        cond: bool,
+        current_sum: f32[N, dim]
+    >(iter, cond, current_sum) -> (bool, f32[N, dim]) {
+        # Run one stochastic path.
+        path_output = stochastic_path(input)
+        # Add to the accumulator.
+        new_sum = Add(current_sum, path_output)
+        return Constant(value_bool=true), new_sum
+    }
+
+    # Run the loop.
+    _, final_sum = Loop<body=body>(path_count, condition, initial_sum)
+
+    # Average the results.
+    aggregated_output = Div(final_sum, Cast<to=f32>(path_count))
+    return aggregated_output
+}
+
+# --- Proofs ---
+# A full proof is difficult because it involves random operators.
+# The correctness depends on the `Loop` operator correctly accumulating results
+# from multiple calls to a subgraph, which is a core ONNX feature.
+
+# A conceptual proof would involve:
+# 1. Defining a `stochastic_path` that uses `Dropout`.
+# 2. Running the `StochasticEnsemble` block.
+# 3. The asserted output would be the average of `path_count` different
+#    dropout applications. Since this is non-deterministic, a strict `assert_close`
+#    is not possible. One could check that the output is within a certain
+#    statistical range.

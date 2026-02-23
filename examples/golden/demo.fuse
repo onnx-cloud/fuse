@@ -1,0 +1,71 @@
+# top-level graph in bound to input/output.
+# @proof not required unless novel
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@id "https://ns.onnx.cloud/examples.golden.demo"
+
+const EPS: f32 = 1e-5
+weight W0: f32[3,2]
+weight b0: f32[2]
+
+graph demo() -> f32[1,2] {
+  a: f32[1,3] = [1.0, 2.0, 3.0]
+  out = sugar(a)
+  assert out == [6.0, 12.0]
+}
+
+fn sugar(x: f32[1,3]) -> f32[1,2] {
+  m = x @ W0
+  y = m + b0
+  Relu(y)
+}
+
+
+@quantize("int8", scale=0.05)
+@dequantize()
+fn q_demo(x: f32[1]) -> f32[1] {
+  x
+}
+
+fn if_demo(x: f32[1], cond: bool) -> f32[1] {
+  if cond {
+    Mul(x, 2.0)
+  } else {
+    x
+  }
+}
+
+@proof graph test_if() {
+  out = if_demo([3.0], true)
+  assert out == [6.0]
+}
+
+@proof graph test_q() {
+  y = q_demo([2.0])
+  assert y == [2.0]
+}
+
+fn loop_sum(n: i64) -> f32 {
+  Loop<
+    body=(iter, cond, acc) => (true, Add(acc, <f32>(iter)))
+  >(n, true, [0.0])
+}
+
+@proof graph test_loop() {
+  out = loop_sum(5)
+  assert out == [10.0]
+}
+// Documentation omitted from this example to keep it parseable.
+
+
+
+// Documentation omitted from this example to keep it parseable.
+
+## 5. Calling & Sugar Operators
+
+## 5. Calling & Sugar Operators
+
+// Documentation omitted from this example.

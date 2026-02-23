@@ -1,0 +1,23 @@
+name: FinBERT Conversion (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Hugging Face model id'
+        required: false
+        default: 'ProsusAI/finbert'
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Note
+        run: |
+          echo "FinBERT conversion workflow has been deprecated: Python conversion tooling removed."
+          echo "Use an external process to generate ONNX artifacts and add vetted snapshots under fusec-rs/tests/snapshots/."

@@ -1,0 +1,23 @@
+# Development & test-time requirements (used by scripts/setup_dev.sh and CI)
+pytest>=7.4,<8
+lark-parser>=0.12,<1.0
+onnxruntime>=1.15,<2.0
+black>=23.9,<25
+ruff>=0.13,<0.16
+pre-commit>=3.0,<4.0
+pyinstaller
+jsonschema>=4.0,<5.0
+matplotlib
+pyast
+
+# optional dependencies for various backends
+# onnx2pytorch
+# torch
+# tensorflow
+
+# Development extras for Jupyter & notebook testing
+ipython
+nbclient
+nbformat
+pydantic
+pytest-asyncio>=0.21,<1.0

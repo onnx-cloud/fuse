@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/usr/local/bin/python", "-m", "ipykernel_launcher", "-f", "{connection_file}"
+  ],
+  "display_name": "Fuse (ONNX)",
+  "language": "python",
+  "env": {
+    "LLM_CONFIG_PATH": "./config/llm.json",
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONPATH": "/fused:${PYTHONPATH}"
+  },
+  "metadata": {
+    "debugger": true
+  }
+}

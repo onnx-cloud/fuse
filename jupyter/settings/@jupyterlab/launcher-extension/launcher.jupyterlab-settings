@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "args": {"path": "jupyter/notebooks/welcome.ipynb"},
+      "command": "docmanager:open",
+      "category": "Welcome",
+      "rank": 1,
+      "title": "Welcome to Fuse"
+    },
+    {
+      "args": {"path": "jupyter/notebooks/quick_fuse.ipynb"},
+      "command": "docmanager:open",
+      "category": "Tutorial",
+      "rank": 2,
+      "title": "Fuse Example"
+    },
+    {
+      "args": {"path": "jupyter/notebooks/new_project_template.ipynb"},
+      "command": "docmanager:open",
+      "category": "New",
+      "rank": 3,
+      "title": "New Project"
+    }
+  ]
+}

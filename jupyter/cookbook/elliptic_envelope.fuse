@@ -1,0 +1,27 @@
+# Cookbook: Elliptic envelope (Mahalanobis-like distance using a precision matrix)
+# Ops: Reshape, MatMul, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+elliptic_envelope_score(x: f32[2]) -> f32[1] {
+  mean: f32[2] = [0.0, 0.0]
+  precision: f32[2,2] = [1.0, 0.0, 0.0, 1.0]
+  shape_row: i64[2] = [1, 2]
+  shape_col: i64[2] = [2, 1]
+  shape_one: i64[1] = [1]
+  diff = Sub(x, mean)
+  row = Reshape(diff, shape_row)
+  col = Reshape(diff, shape_col)
+  left = MatMul(row, precision)
+  mahal = MatMul(left, col)
+  Reshape(mahal, shape_one)
+}
+
+@proof graph test_elliptic_envelope() {
+  sample = [2.0, 0.0]
+  out = elliptic_envelope_score(sample)
+  assert out == [4.0]
+}

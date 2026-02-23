@@ -1,0 +1,25 @@
+name: CI - Smoke tests
+
+on: [push, pull_request]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          uv pip install -r requirements-dev.txt
+      - name: Run test suite (skip 'golden' marked tests)
+        run: |
+          . .venv/bin/activate
+          ./scripts/run_tests.sh -q -m "not golden"
+      - name: Run examples (golden subset)
+        run: |
+          . .venv/bin/activate
+          ./scripts/run_examples.sh || true

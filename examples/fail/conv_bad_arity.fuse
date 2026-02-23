@@ -1,0 +1,7 @@
+# Fail case: Conv called with missing weight argument to test arity checking
+fuse 1.0 opset onnx @18 module conv_bad_arity
+
+fn conv_bad(x: f32[1, 28, 28]) -> f32[64, 22, 22] {
+  y = Conv(x)  # missing weight arg
+  y
+}

@@ -1,0 +1,9 @@
+{
+  "adam": {"canon": "Adam", "state_suffixes": ["m", "v"], "require_state": true},
+  "adamw": {"canon": "AdamW", "state_suffixes": ["m", "v"], "require_state": true},
+  "adagrad": {"canon": "Adagrad", "state_suffixes": ["accum"], "require_state": true},
+  "momentum": {"canon": "Momentum", "state_suffixes": ["momentum"], "require_state": true},
+  "sgd": {"canon": "SGD", "state_suffixes": [], "require_state": false},
+  "conv_special": {"note": "Conv params (e.g., W) may have states that are 1-D over output channels and broadcasted", "examples": {"param_pattern": "*.W", "state_ok": "[C] matches [C, ...]"}},
+  "batchnorm_special": {"note": "BatchNorm scale/bias params expect matching 1-D states over channels", "examples": {"param_names": ["scale", "bias", "mean", "var"]}}
+}

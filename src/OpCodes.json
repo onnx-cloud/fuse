@@ -1,0 +1,203 @@
+[
+  {
+    "name": "Abs",
+    "domain": "",
+    "since": 13,
+    "inputs": [
+      {
+        "name": "X",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Acos",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Acosh",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Add",
+    "domain": "",
+    "since": 14,
+    "inputs": [
+      {
+        "name": "A",
+        "type": "T",
+        "optional": false
+      },
+      {
+        "name": "B",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "AffineGrid",
+    "domain": "",
+    "since": 20,
+    "inputs": [
+      {
+        "name": "theta",
+        "type": "T1",
+        "optional": false
+      },
+      {
+        "name": "size",
+        "type": "T2",
+        "optional": false
+      }
+    ],
+    "attributes": [
+      "align_corners"
+    ]
+  },
+  {
+    "name": "And",
+    "domain": "",
+    "since": 7,
+    "inputs": [
+      {
+        "name": "A",
+        "type": "T",
+        "optional": false
+      },
+      {
+        "name": "B",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "ArgMax",
+    "domain": "",
+    "since": 13,
+    "inputs": [
+      {
+        "name": "data",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": [
+      "axis",
+      "keepdims",
+      "select_last_index"
+    ]
+  },
+  {
+    "name": "ArgMin",
+    "domain": "",
+    "since": 13,
+    "inputs": [
+      {
+        "name": "data",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": [
+      "axis",
+      "keepdims",
+      "select_last_index"
+    ]
+  },
+  {
+    "name": "Asin",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Asinh",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Atan",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "Atanh",
+    "domain": "",
+    "since": 22,
+    "inputs": [
+      {
+        "name": "input",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": []
+  },
+  {
+    "name": "AveragePool",
+    "domain": "",
+    "since": 1,
+    "inputs": [
+      {
+        "name": "X",
+        "type": "T",
+        "optional": false
+      }
+    ],
+    "attributes": [
+      "kernel_shape",
+      "strides",
+      "pads",
+      "ceil_mode",
+      "count_include_pad",
+      "kernel_shape'
+    ]
+  }
+]

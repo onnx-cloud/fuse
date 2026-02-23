@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "name": "conv_output_channel_broadcast",
+      "pattern": "*.W",
+      "description": "Conv parameter weights may have state tensors that are 1-D over the output channel and broadcastable",
+      "accept": "leading_channel_broadcast"
+    },
+    {
+      "name": "batchnorm_channel_exact",
+      "pattern": "scale",
+      "description": "BatchNorm parameter states (scale/bias/mean/var) should match 1-D channel dims exactly",
+      "accept": "exact_1d"
+    },
+    {
+      "name": "batchnorm_channel_exact_bias",
+      "pattern": "bias",
+      "description": "BatchNorm bias-like params should match 1-D channel dims exactly",
+      "accept": "exact_1d"
+    }
+  ]
+}

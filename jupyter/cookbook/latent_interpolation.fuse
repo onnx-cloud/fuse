@@ -1,0 +1,79 @@
+#
+# LatentInterpolation: Interpolates between latent states to explore intermediate outcomes.
+#
+# Motivation:
+#   Generative models often work in a "latent space," where complex data like
+#   images are represented by simple vectors. Moving around in this latent space
+#   corresponds to changing the generated output. Latent Interpolation provides a
+#   way to smoothly transition between two points in this space, allowing us to
+#   see how the generated output evolves from one state to another. This is famously
+#   used to create smooth transitions between faces or other generated images.
+#
+# Concept:
+#   This fn performs a linear interpolation between two latent state vectors.
+#
+#   - Inputs:
+#     - `latent1`: The first latent state, shape `f32[N, dim]`.
+#     - `latent2`: The second latent state, shape `f32[N, dim]`.
+#     - `alpha`: A scalar blending factor between 0 and 1.
+#
+#   - Output:
+#     - The interpolated latent state, shape `f32[N, dim]`.
+#
+# Formalism:
+#   The output `Y` is a linear combination of the two input vectors `L1` and `L2`,
+#   controlled by the interpolation factor `α`.
+#
+#   Y = (1 - α) * L1 + α * L2
+#
+#   - If `α = 0`, the output is `L1`.
+#   - If `α = 1`, the output is `L2`.
+#   - If `α = 0.5`, the output is the midpoint between `L1` and `L2`.
+#
+fn LatentInterpolation(
+    latent1: f32[N, dim],
+    latent2: f32[N, dim],
+    alpha: f32
+) -> (interpolated: f32[N, dim]) {
+    # (1 - alpha) * latent1
+    term1 = Mul(Sub(1.0, alpha), latent1)
+
+    # alpha * latent2
+    term2 = Mul(alpha, latent2)
+
+    # Add the two terms.
+    interpolated = Add(term1, term2)
+    return interpolated
+}
+
+# --- Proofs ---
+
+@proof test_latent_interpolation_midpoint() {
+    l1: f32[1, 4] = [[10.0, 0.0, -5.0, 100.0]]
+    l2: f32[1, 4] = [[20.0, 10.0, 5.0, 100.0]]
+
+    # Alpha = 0.5 should give the exact midpoint.
+    alpha_mid = 0.5
+
+    result = LatentInterpolation(l1, l2, alpha_mid)
+
+    # asserted: 0.5*l1 + 0.5*l2 = 0.5 * (l1 + l2)
+    # l1+l2 = [30, 10, 0, 200]
+    # asserted = [15, 5, 0, 100]
+    asserted: f32[1, 4] = [[15.0, 5.0, 0.0, 100.0]]
+
+    assert_close(result, asserted)
+}
+
+@proof test_latent_interpolation_endpoints() {
+    l1: f32[1, 2] = [[1.0, 2.0]]
+    l2: f32[1, 2] = [[100.0, 200.0]]
+
+    # Test alpha = 0, should return l1.
+    result_alpha0 = LatentInterpolation(l1, l2, 0.0)
+    assert_close(result_alpha0, l1)
+
+    # Test alpha = 1, should return l2.
+    result_alpha1 = LatentInterpolation(l1, l2, 1.0)
+    assert_close(result_alpha1, l2)
+}

@@ -1,0 +1,25 @@
+{
+  "llm": {
+    "think": {
+      "model": "deepseek-thinking",
+      "url": "https://api.deepseek.com/chat/completions",
+      "secretEnv": "DEEPSEEK_API_KEY",
+      "prompt": "config/prompts/think/deepseek.md",
+      "label": "@fuse thinker"
+    },
+    "chat": {
+      "model": "deepseek-chat",
+      "url": "https://api.deepseek.com/chat/completions",
+      "secretEnv": "DEEPSEEK_API_KEY",
+      "prompt": "config/prompts/chat/deepseek.md",
+      "label": "@fuse architect"
+    },
+    "coder": {
+      "model": "deepseek-coder",
+      "url": "https://api.deepseek.com/chat/completions",
+      "secretEnv": "DEEPSEEK_API_KEY",
+      "prompt": "config/prompts/coder/deepseek.md",
+      "label": "@fuse co-pilot"
+    }
+  }
+}

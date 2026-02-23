@@ -1,0 +1,27 @@
+# Cookbook: Isolation-forest inspired scoring (sum of scaled absolute deviations)
+# Ops: Sub, Abs, Div, ReduceSum, Add, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+
+fn isolation_forest_score(x: f32[3]) -> f32[1] {
+  center: f32[3] = [-0.5, 1.0, 0.5]
+  scale: f32[3] = [1.0, 1.0, 1.0]
+  shape_one: i64[1] = [1]
+  diff = Abs(Sub(x, center))
+  scaled = Div(diff, scale)
+  total = ReduceSum(scaled, axes0, keepdims@=0)
+  norm = Add(total, 1.0)
+  inv = Div(1.0, norm)
+  Reshape(inv, shape_one)
+}
+
+@proof graph test_isolation_forest_score() {
+  sample = [0.5, 1.0, 1.5]
+  out = isolation_forest_score(sample)
+  assert out == [0.3333333]
+}

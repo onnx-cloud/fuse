@@ -1,0 +1,98 @@
+#
+# FeedbackLoop: Loops outputs back with learned transformation for iterative refinement.
+#
+# Motivation:
+#   Many complex problems can be solved iteratively. An initial guess is made and
+#   then progressively refined until a satisfactory solution is reached. A
+#   Feedback Loop provides a formal mechanism for this process within a neural
+#   network, allowing a model to "re-think" its output multiple times. This is
+#   the core idea behind Recurrent Neural Networks (RNNs).
+#
+# Concept:
+#   This fn repeatedly applies a "refinement" subgraph to a state tensor for a
+#   fixed number of steps. The output of the subgraph at one step becomes the
+#   input for the next.
+#
+#   - Inputs:
+#     - `initial_state`: The starting tensor, shape `f32[N, dim]`.
+#     - `refinement_node`: A subgraph (block) that performs one step of refinement.
+#     - `loop_steps`: The number of refinement iterations to perform.
+#
+#   - Output:
+#     - The final state tensor after `loop_steps` iterations, shape `f32[N, dim]`.
+#
+# Formalism:
+#   This structure is formally a Recurrent Neural Network. Let `h_0` be the
+#   `initial_state` and `f` be the `refinement_node`. The state at each step `t` is
+#   computed as:
+#
+#   h_t = f(h_{t-1})
+#
+#   This is repeated for `t` from 1 to `loop_steps`. The final output is `h_{loop_steps}`.
+#   In ONNX, this is implemented using the `Loop` operator.
+#
+fn FeedbackLoop(
+    initial_state: f32[N, dim],
+    refinement_node: subgraph,
+    loop_steps: i64
+) -> (final_state: f32[N, dim]) {
+    # The ONNX `Loop` operator requires a trip count, a condition, and the
+    # initial values for any loop-carried state variables.
+
+    # We don't need a termination condition other than the step count.
+    # So we pass a constant `true` value.
+    condition = Constant(value_bool=true)
+
+    # The `Loop` operator takes the max trip count, the initial condition,
+    # and the initial state. It returns the final state(s).
+    # The `body` attribute points to the subgraph to be executed in each iteration.
+    _, final_state = Loop<body=refinement_node>(loop_steps, condition, initial_state)
+
+    return final_state
+}
+
+# --- Proofs ---
+
+# Define a simple refinement function for the proof.
+# It adds a constant value and then applies a ReLU.
+fn RefineStep(iter_num: i64, cond: bool, current_state: f32[N, dim]) -> (bool, f32[N, dim]) {
+    # The body of a Loop in ONNX must return the condition for the next iteration
+    # as its first output.
+    keep_going = Constant(value_bool=true)
+
+    # The refinement logic.
+    added = Add(current_state, -1.0)
+    new_state = Relu(added)
+
+    return keep_going, new_state
+}
+
+@proof test_feedback_loop_refinement() {
+    # Initial state.
+    start_state: f32[1, 4] = [[2.5, 0.8, 5.0, 0.2]]
+
+    # Number of refinement steps.
+    steps: i64 = 3
+
+    # Run the feedback loop.
+    final = FeedbackLoop(start_state, RefineStep, steps)
+
+    # Let's trace the execution manually:
+    # h_0 = [2.5, 0.8, 5.0, 0.2]
+    //
+    # Step 1:
+    # h_0 - 1 = [1.5, -0.2, 4.0, -0.8]
+    # h_1 = Relu(...) = [1.5, 0.0, 4.0, 0.0]
+    //
+    # Step 2:
+    # h_1 - 1 = [0.5, -1.0, 3.0, -1.0]
+    # h_2 = Relu(...) = [0.5, 0.0, 3.0, 0.0]
+    //
+    # Step 3:
+    # h_2 - 1 = [-0.5, -1.0, 2.0, -1.0]
+    # h_3 = Relu(...) = [0.0, 0.0, 2.0, 0.0]
+
+    asserted: f32[1, 4] = [[0.0, 0.0, 2.0, 0.0]]
+
+    assert_close(final, asserted)
+}

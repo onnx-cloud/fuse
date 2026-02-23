@@ -1,0 +1,21 @@
+@id "urn:playbook.transformer.v1"
+
+model linear(x: float[batch,dim], w: float[dim,out], b: float[out]) -> float[batch,out] { x @ matmul w + b }
+
+model gelu(x) -> x { /* assume gelu builtin */ }
+
+model attn_head(x: float[batch,seq,dim]) -> float[batch,seq,dim] {
+  let q = linear(x, wq, bq)
+  let k = linear(x, wk, bk)
+  let v = linear(x, wv, bv)
+  let w = (q @ matmul k.transpose(-2, -1)) / sqrt(float(dim))
+  let a = softmax(w, dim=-1)
+  let out = a @ matmul v
+  out
+}
+
+model transformer_block(x: float[batch,seq,dim]) -> float[batch,seq,dim] {
+  let h = attn_head(x)
+  let out = linear(h, w_out, b_out)
+  out
+}

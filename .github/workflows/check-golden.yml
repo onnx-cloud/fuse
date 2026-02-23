@@ -1,0 +1,43 @@
+name: Check golden ONNX consistency
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    paths:
+      - 'examples/golden/**'
+      - 'onnx/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+
+jobs:
+  check-goldens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m uv pip install --upgrade pip
+          uv pip install -r requirements.txt
+          uv pip install -r requirements-dev.txt
+          uv pip install -e .[dev]
+
+      - name: Regenerate examples (no global validation)
+        env:
+          OUT_DIR: tmp/onnx
+        run: |
+          # Generate ONNX outputs; per-file validation is performed during comparison
+          OUT_DIR=tmp/onnx ./scripts/run_examples.sh
+
+      - name: Compare generated ONNX artifacts with committed goldens
+        run: |
+          ./scripts/check_golden_consistency.sh tmp/onnx onnx

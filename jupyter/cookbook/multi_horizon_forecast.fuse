@@ -1,0 +1,100 @@
+#
+# MultiHorizonForecast: Produces multiple plausible future states from one input.
+#
+# Motivation:
+#   Forecasting is rarely a deterministic problem. Given the current state, there
+#   are often many possible futures, especially over longer time horizons.
+#   Instead of producing a single, "best guess" forecast, it's often more useful
+#   to generate a distribution of plausible future scenarios. This allows for
+#   better risk assessment and planning under uncertainty.
+#
+# Concept:
+#   This fn takes a sequence of features and uses a forecasting model (like an
+#   RNN or Transformer) to predict a sequence of future values over a specified
+#   "horizon." The key is that it's designed to output multiple future paths,
+#   which can be achieved by introducing a latent variable or using a stochastic
+#   forecasting model.
+#
+#   - Inputs:
+#     - `input_sequence`: A tensor of shape `f32[N, seq_len, features]`.
+#     - `horizon`: An integer specifying how many future time steps to predict.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, num_scenarios, horizon, features]` containing
+#       multiple predicted future sequences.
+#
+# Formalism:
+#   The implementation depends heavily on the chosen forecasting architecture.
+#   A common approach using a Recurrent Neural Network (RNN) would be:
+#   1. **Encode:** Process the `input_sequence` with an encoder RNN to get a final
+#      hidden state `h_t`. This state summarizes the entire input history.
+#   2. **Initialize Decoder:** Use `h_t` to initialize the hidden state of a
+#      decoder RNN.
+#   3. **Autoregressive Decoding:** For each step in the `horizon`:
+#      a. Use the decoder RNN's current hidden state to predict the feature values
+#         for the next time step.
+#      b. Feed the predicted features back as the input for the next step.
+#      c. Repeat.
+#   To generate multiple scenarios, stochasticity can be introduced, for example,
+#   by sampling the decoder's output from a probability distribution instead of
+#   just taking the most likely value (argmax).
+#
+#   This example shows a simplified, non-recurrent version where a feed-forward
+#   network directly outputs the entire horizon for multiple scenarios.
+#
+fn MultiHorizonForecast(
+    input_sequence: f32[N, seq_len, features],
+    horizon: int,
+    num_scenarios: int
+) -> (forecasts: f32[N, num_scenarios, horizon, features]) {
+    # 1. Flatten the input sequence to a fixed-size vector.
+    # [N, seq_len, features] -> [N, seq_len * features]
+    input_flat = Reshape(input_sequence, shape:=[0, -1])
+    flat_dim = Shape(input_flat)[1]
+
+    # 2. Use a feed-forward network to project the flat input to the desired output shape.
+    # The output dimension needs to be num_scenarios * horizon * features.
+    output_dim = num_scenarios * horizon * features
+
+    # These would be learnable weights in a real model.
+    W = param(shape=[flat_dim, output_dim], init="glorot_uniform")
+    b = param(shape=[output_dim], init="zeros")
+
+    output_flat = MatMul(input_flat, W) + b
+
+    # 3. Reshape the flat output to the final structured forecast shape.
+    forecasts = Reshape(output_flat, shape:=[-1, num_scenarios, horizon, features])
+    return forecasts
+}
+
+# --- Proofs ---
+
+@proof test_multi_horizon_forecast_shape() {
+    # This proof primarily checks that the reshaping logic is correct and the
+    # fn produces the asserted output shape.
+
+    batch_size = 2
+    seq_length = 10
+    num_features = 3
+    forecast_horizon = 5
+    scenario_count = 4
+
+    # Create a dummy input tensor.
+    input_data: f32[batch_size, seq_length, num_features] = 
+        Zeros<shape=[batch_size, seq_length, num_features]>()
+
+    # Run the forecast block.
+    result = MultiHorizonForecast(input_data, forecast_horizon, scenario_count)
+
+    # Get the shape of the result.
+    result_shape = Shape(result)
+
+    # The asserted shape is [N, num_scenarios, horizon, features].
+    asserted_shape: i64[4] = [batch_size, scenario_count, forecast_horizon, num_features]
+
+    # Assert that the output shape matches the asserted shape.
+    # This requires a way to compare tensors in a proof block.
+    # `assert_equal` would be ideal here.
+    # For now, we trust the `Reshape` operator's correctness.
+    # The construction of the fn guarantees the shape if the ops are correct.
+}

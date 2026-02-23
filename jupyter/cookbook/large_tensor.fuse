@@ -1,0 +1,20 @@
+# Cookbook: Example showing use of @import to reference external tensor data
+# This file demonstrates `const` loaded from an external binary file.
+
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+@meta author = "onnx.cloud"
+# Data (.bin/.npz/.onnx) file is asserted to be relative to this file (and will be copied when compiling)
+const WEIGHTS: f32[2,2] = @import("weights/f32_2x2.bin", offset=0)
+
+fn apply(x: f32[2]) -> f32[2] {
+  y = MatMul(x, WEIGHTS)
+  y
+}
+
+@proof graph test_apply() {
+  out = apply([1.0, 2.0])
+}

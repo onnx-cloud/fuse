@@ -1,0 +1,89 @@
+#
+# AdaptivePrecision: Per-channel precision scaling for efficiency.
+#
+# Motivation:
+#   In resource-constrained environments like edge devices, running models at full
+#   32-bit floating-point precision (f32) can be costly. However, not all
+#   features in a neural network require high precision. Some can be represented
+#   with lower precision (e.g., 16-bit floats or 8-bit integers) without
+#   significant loss of accuracy. This fn provides a mechanism to simulate
+#   this by learning a "scaling factor" for each feature channel, effectively
+#   controlling its dynamic range.
+#
+# Concept:
+#   This fn learns a per-channel scaling factor that is multiplied with the
+#   input tensor. Channels deemed less important can be scaled down, reducing
+#   their magnitude and making them amenable to lower-precision quantization.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `scaling_map` (optional): A 1D tensor of shape `f32[dim]` containing
+#       the scaling factors. If not provided, it's treated as a learnable
+#       parameter.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` where each channel is multiplied by its
+#       corresponding scaling factor.
+#
+# Formalism:
+#   Let `X` be the input tensor and `S` be the scaling map. The output `Y` is
+#   computed by element-wise multiplication:
+#
+#   Y_ij = X_ij * S_j
+#
+#   The scaling map `S` is broadcast across the batch dimension `N`.
+#
+fn AdaptivePrecision(
+    input: f32[N, dim],
+    scaling_map: f32[dim]
+) -> (f32[N, dim]) {
+    # If `scaling_map` is not provided, a learnable parameter should be used.
+    # For clarity in this example we use an explicit `scaling_map` argument.
+    scales = scaling_map  # asserted shape: [dim]
+
+    # The `scales` tensor has shape `[dim]`. To multiply it with `input` of shape
+    # `[N, dim]`, we need to broadcast it. The `Mul` operator automatically
+    # handles broadcasting when dimensions are compatible (a dim of size 1 can
+    # be broadcast to any size). Here, `[dim]` is broadcast to `[N, dim]`.
+    scaled_output = Mul(input, scales)
+    return scaled_output
+}
+
+@proof test_adaptive_precision_scaling() {
+    # Define an input tensor with a batch of 2 and 3 channels.
+    input_tensor: f32[2, 3] = [
+        [10.0, 20.0, 30.0],
+        [4.0, 5.0, 6.0]
+    ]
+
+    # Define a scaling map to:
+    # - Keep the first channel as is (scale = 1.0)
+    # - Halve the precision/magnitude of the second channel (scale = 0.5)
+    # - Nullify the third channel (scale = 0.0)
+    scales: f32[3] = [1.0, 0.5, 0.0]
+
+    scaled = AdaptivePrecision(input_tensor, scales)
+
+    # asserted output after applying the scaling.
+    asserted_output: f32[2, 3] = [
+        [10.0, 10.0, 0.0], # [10*1, 20*0.5, 30*0]
+        [4.0, 2.5, 0.0]   # [4*1, 5*0.5, 6*0]
+    ]
+
+    assert_close(scaled, asserted_output)
+}
+
+@proof test_adaptive_precision_no_scaling() {
+    # If no scaling map is provided, the fn should not change the input.
+    input_tensor: f32[2, 3] = [
+        [10.0, 20.0, 30.0],
+        [4.0, 5.0, 6.0]
+    ]
+
+    # Call the fn with an explicit all-ones scaling_map.
+    ones: f32[3] = [1.0, 1.0, 1.0]
+    scaled = AdaptivePrecision(input_tensor, ones)
+
+    # The output should be identical to the input.
+    assert_close(scaled, input_tensor)
+}

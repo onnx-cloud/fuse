@@ -1,0 +1,7 @@
+@fuse 0.7
+
+# Intentional syntax error to test parser diagnostics
+fn bad(x: f32[1]) -> f32[1] {
+  y = Add(x, )
+  y
+}

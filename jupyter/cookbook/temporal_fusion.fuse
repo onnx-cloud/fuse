@@ -1,0 +1,105 @@
+#
+# TemporalFusion: Fuse multiple time-series features
+#
+# Concept:
+#   Dynamically blends `n` time-series sequences into a single representative sequence.
+#   Each input sequence has `seq` timesteps and `features` per step.
+#
+#   - Inputs:
+#     - `seqs`: A tensor of shape `f32[n, seq, features]` containing `n` sequences.
+#     - `weights` (optional): A 1D tensor of shape `f32[n]` to specify the
+#       blending weights for each sequence. If not provided, sequences are
+#       averaged with uniform weights.
+#
+#   - Output:
+#     - A single fused sequence of shape `f32[seq, features]`.
+#
+#   - Behavior:
+#     1. Normalize the input `weights` to sum to 1. If no weights are given,
+#        create a uniform weight distribution.
+#     2. Multiply each sequence by its corresponding normalized weight. This is
+#        done by broadcasting the weights across the `seq` and `features` dimensions.
+#     3. Sum the weighted sequences along the `n` dimension to produce the final
+#        fused sequence.
+#
+# Example Use Case:
+#   - Multi-sequence forecasting: Combine forecasts from multiple models or
+#     sensors into a single, more robust forecast. For instance, blending
+#     weather predictions from several different meteorological sources.
+#
+fn TemporalFusion(seqs: f32[n, seq, features], weights: f32[n] = None) -> (fused: f32[seq, features]) {
+    # If weights are not provided, default to uniform weights (i.e., simple averaging).
+    w = weights ?? Ones<like = seqs, shape = [n]>()
+
+    # Normalize weights to ensure they sum to 1. This makes the fusion a weighted average.
+    # `ReduceSum(w, axes=[0])` computes the sum of all weights.
+    w_norm = Div(w, ReduceSum(w, axes=[0]))
+
+    # The weights `w_norm` are of shape `[n]`. To multiply them with `seqs` of shape
+    # `[n, seq, features]`, we need to make their shapes compatible for broadcasting.
+    # `Unsqueeze` adds new dimensions of size 1, changing `w_norm`'s shape
+    # to `[n, 1, 1]`.
+    w_broadcastable = Unsqueeze(w_norm, axes@=[1, 2])
+
+    # Multiply each sequence by its normalized weight.
+    # Due to broadcasting rules, `w_broadcastable` is "stretched" to match the
+    # dimensions of `seqs`.
+    weighted_seqs = Mul(seqs, w_broadcastable)
+
+    # Sum the weighted sequences along the first dimension (the `n` sequences)
+    # to get the final fused result. `keepdims@=0` removes the dimension of size 1.
+    fused = ReduceSum(weighted_seqs, axes=[0], keepdims@=0)
+    return fused
+}
+
+@proof test_temporal_fusion_uniform_weights() {
+    # Define two input sequences.
+    # Shape: [2, 2, 3] -> n=2, seq=2, features=3
+    sequences: f32[2, 2, 3] = [
+        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], # Sequence 1
+        [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]  # Sequence 2
+    ]
+
+    # Call TemporalFusion without weights, which should result in a simple average.
+    fused_output = TemporalFusion(sequences)
+
+    # asserted output is the element-wise average of the two sequences:
+    # asserted at [0, 0]: (1.0 + 7.0) / 2 = 4.0
+    # asserted at [0, 1]: (2.0 + 8.0) / 2 = 5.0
+    # ... and so on.
+    asserted: f32[2, 3] = [
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]
+    ]
+
+    # Verify the output matches the asserted average.
+    # `assert_close` is used for robust floating-point comparisons.
+    assert_close(fused_output, asserted)
+}
+
+@proof test_temporal_fusion_custom_weights() {
+    # Define two input sequences, same as before.
+    sequences: f32[2, 2, 3] = [
+        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+        [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+    ]
+
+    # Define custom weights: the first sequence has 25% influence, the second has 75%.
+    custom_weights: f32[2] = [0.25, 0.75]
+
+    # Call TemporalFusion with the custom weights.
+    fused_output = TemporalFusion(sequences, custom_weights)
+
+    # asserted output is the weighted average:
+    # asserted at [0, 0]: (1.0 * 0.25) + (7.0 * 0.75) = 0.25 + 5.25 = 5.5
+    # asserted at [0, 1]: (2.0 * 0.25) + (8.0 * 0.75) = 0.5 + 6.0 = 6.5
+    # ... and so on.
+    asserted: f32[2, 3] = [
+        [5.5, 6.5, 7.5],
+        [8.5, 9.5, 10.5]
+    ]
+
+    # Verify the output matches the asserted weighted average.
+    assert_close(fused_output, asserted)
+}
+

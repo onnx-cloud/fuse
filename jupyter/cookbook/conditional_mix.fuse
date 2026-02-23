@@ -1,0 +1,88 @@
+#
+# ConditionalMix: Blends inputs according to learned gating based on context.
+#
+# Motivation:
+#   This fn is a synonym for `MetaResidual`. It provides a mechanism to
+#   dynamically combine two inputs based on a learned gating signal. This is a
+#   fundamental operation for creating adaptive models that can adjust their
+#   internal data flow based on the specific input they receive. It's more
+#   flexible than a simple addition or concatenation, allowing the model to learn
+#   the optimal blending ratio for different situations.
+#
+# Concept:
+#   This fn computes a weighted sum of two input tensors, `input1` and `input2`.
+#   The weight, or "gate," is a scalar value between 0 and 1 that is dynamically
+#   generated from a third "context" input.
+#
+#   - Inputs:
+#     - `input1`: The first tensor to be mixed, shape `f32[N, dim]`.
+#     - `input2`: The second tensor to be mixed, shape `f32[N, dim]`.
+#     - `context`: A tensor used to generate the gating signal.
+#     - `gate_node`: A subgraph that maps the `context` to a gating value.
+#
+#   - Output:
+#     - The mixed tensor, shape `f32[N, dim]`.
+#
+# Formalism:
+#   1. A gating value `g` is computed from the context: `g = gate_node(context)`.
+#      The output of `gate_node` is typically passed through a sigmoid to ensure
+#      `g` is between 0 and 1.
+#   2. The final output `Y` is a linear interpolation between `input1` and `input2`,
+#      controlled by `g`:
+#
+#      Y = g * input1 + (1 - g) * input2
+#
+fn ConditionalMix(
+    input1: f32[N, dim],
+    input2: f32[N, dim],
+    context: f32[N, context_dim]
+) -> f32[N, dim] {
+    # A simple gating function: a linear layer followed by a sigmoid.
+    # It projects the context to a single logit, then squashes it to [0, 1].
+    gate_W = param(shape=[context_dim, 1], init="glorot_uniform")
+    gate_b = param(shape=[1], init="zeros")
+
+    logits = MatMul(context, gate_W) + gate_b # Shape: [N, 1]
+    gate = Sigmoid(logits) # Shape: [N, 1]
+
+    # The gate is broadcastable to the shape of the inputs [N, dim].
+
+    # `g * input1`
+    term1 = Mul(gate, input1)
+
+    # `(1 - g) * input2`
+    term2 = Mul(Sub(1.0, gate), input2)
+
+    # Add the two terms.
+    output = Add(term1, term2)
+    return output
+}
+
+# --- Proofs ---
+
+@proof test_conditional_mix() {
+    in1: f32[2, 3] = [[1.0, 1.0, 1.0], [10.0, 10.0, 10.0]]
+    in2: f32[2, 3] = [[-1.0, -1.0, -1.0], [-10.0, -10.0, -10.0]]
+
+    # Context designed to produce a gate of ~0.5 for the first sample
+    # and ~1.0 for the second sample.
+    # This would be achieved by having the gating function learn appropriate weights.
+    # For the proof, we'll just use a pre-computed gate.
+
+    # Let's test the core mixing logic with a fixed gate.
+    gate_val: f32[2, 1] = [[0.75], [0.1]]
+
+    term1 = Mul(gate_val, in1)
+    term2 = Mul(Sub(1.0, gate_val), in2)
+    result = Add(term1, term2)
+
+    # asserted output:
+    # Row 1: 0.75 * [1,1,1] + 0.25 * [-1,-1,-1] = [0.75, 0.75, 0.75] + [-0.25, -0.25, -0.25] = [0.5, 0.5, 0.5]
+    # Row 2: 0.1 * [10,10,10] + 0.9 * [-10,-10,-10] = [1,1,1] + [-9,-9,-9] = [-8, -8, -8]
+    asserted: f32[2, 3] = [
+        [0.5, 0.5, 0.5],
+        [-8.0, -8.0, -8.0]
+    ]
+
+    assert_close(result, asserted, atol=1e-6)
+}

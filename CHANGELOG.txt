@@ -1,0 +1,100 @@
+Unreleased
+
+- Add: Generated operator catalog `OPS.json` and a convenience script `scripts.supported_ops` to regenerate it (use `python -m scripts.supported_ops --output OPS.json`).
+
+- Note: `GraphContext` accepts an injectable `name_allocator: NameAllocator` (default: `StableNameAllocator`) to enable deterministic, testable naming. This is backwards-compatible: if no allocator is provided, legacy naming is preserved. If you depend on specific node names for downstream tooling, add a test to lock the expected naming behavior and update the changelog when intentionally changing it.
+
+- Add: Generated gold artifacts: `docs/ebnf.md` (extracted from `src/parser.py`) and `./schemas/fuse.ast.schema.json` (canonical AST schema). Use `./scripts/generate_gold.py` to refresh.
+- Fix: Parser accepts shorthand array types like `f32[1]` and `MyType[3]` (new `array_scalar` and `ident_array` forms).
+- Fix: Add `@import ... from "..."` support with local caching, LOCK.json provenance (`onnx/LOCK.json`), and `--refresh-cache/--import` CLI flags.
+- Change: Namespacing now prefers an explicit `@domain <name>` declaration; lowering will require `@domain` when namespacing is enabled (use `--no-ns` to disable).
+- Add: Lowering-time assertions: `assert expr` statements are enforced at lowering if resolvable; non-constant assertions are recorded in model metadata under `fuse.asserts` for runtime tooling and debugging.
+
+Fuse 
+
+[Improvements]
+- Stable SSA-style naming across compiler runs for deterministic output.
+- Enhanced import fusion with improved caching and provenance tracking.
+- Extended assertion system with lowering-time and runtime support.
+- Support for shorthand array types (e.g., `f32[1]`, `MyType[3]`).
+- Add: Training annotations `@training` (module metadata), `@train` and `@frozen` (declaration-level `trainable` flags). Lowering preserves `trainable` 
+- tests and examples added under `tests/training/` and docs updated.
+
+[Fixes]
+- Parser now correctly handles array scalar types and ident array forms.
+- Improved error handling in import resolution and caching.
+
+Fuse v1.1
+
+[Parser & AST]
+- Refactored AST transformer for improved modularity.
+- Added type path resolution and simplified type checking logic.
+- Enhanced error messages for better debugging.
+
+[Lowering]
+- Optimized graph context propagation.
+- Improved handling of constant folding and parameter initialization.
+- Better support for dynamic shapes and symbolic dimensions.
+
+[Ops & Syntax]
+- Refined attribute syntax handling and validation.
+- Enhanced operator coverage and edge case handling.
+
+Fuse v1.0 (draft)
+
+[Parser & AST]
+- Added support for type syntax: `type` aliases (`type Name = f32[n+1]`).
+- Added symbolic dims and expressions in type declarations (e.g., `n+1`, `m//2`).
+- Added variadic/ellipsis dims support: `<T>[...]`, `<T>[batch, ...]`, and `:` shorthand for dynamic dims.
+- Updated and extended `schemas/fuse.ast.schema.json` to include type aliases and symbolic dims; added validation tests.
+
+[Lowering]
+- Type aliases are resolved at lowering time and used for parameter/output shaping.
+- Symbolic and non-integer dims are represented as dynamic (ONNX dim_value=0) in lowered `ValueInfoProto`.
+
+[Ops & Syntax]
+- Introduced attribute handling: postfix attribute syntax `name@=value` supported; unadorned `name=value` will be treated as an attribute when the value is a literal.
+- Added `@golden` top-level test that compiles to ONNX and executes numeric checks with ReferenceEvaluator.
+
+[Quantization]
+- Replaced call-based `Quantize(x, s, z)` / `Dequantize(x, s, z)` helpers with function-level pragmas `@quantize(...)` and `@dequantize(...)` (they lower to `QuantizeLinear` / `DequantizeLinear` / `Cast` as appropriate); updated tests and examples to use the new pragmas.
+
+[Tests & Schema]
+- Added `tests/test_parser_v2.py`, `tests/test_ast_schema.py`, `tests/test_lowering_v2.py`, `tests/test_attr_syntax.py`, `tests/test_golden.py`, and `tests/test_quantize.py`.
+- All tests pass on the current branch.
+
+Fuse v0.9
+
+[Parser & AST]
+- Initial EBNF grammar implementation with base parsing functionality.
+- domain namespacing with explicit `@domain` declaration.
+- Basic AST structure and transformations.
+- Support for function declarations and parameter lists.
+
+[Lowering]
+- Core lowering pipeline: Source → AST → IR → ONNX.
+- Basic GraphContext implementation for ONNX node management.
+- Initial operator support (arithmetic, reshape, transpose).
+
+[Testing]
+- Basic test suite for parser and lowering.
+
+Fuse v0.5
+
+[Core Foundation]
+- Project structure and build system established.
+- Initial parser scaffolding with token and symbol definitions.
+- Basic lowering framework setup.
+- ONNX schema integration and operator mapping.
+
+[CLI]
+- Basic command-line interface for compilation and decompilation.
+- Help and version information.
+
+Fuse v0.1
+
+[Initial Release]
+- Fuse project initialized.
+- Core infrastructure: Python project setup, packaging, and CI/CD skeleton.
+- SPEC.md defining grammar and type/shape rules.
+- Basic examples directory structure.

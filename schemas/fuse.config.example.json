@@ -1,0 +1,84 @@
+{
+  "global": {
+    "verbose": 0,
+    "quiet": false,
+    "version": false
+  },
+  "compile": {
+    "files": [],
+    "out_dir": null,
+    "refresh_cache": false,
+    "refresh_import": null,
+    "folds": 8,
+    "externalize": 0,
+    "external_dir": null,
+    "preserve_external": false,
+    "wasm": false
+  },
+  "dot": {
+    "files": [],
+    "svg": null,
+    "png": null,
+    "dot": null,
+    "out_dir": null,
+    "name_pattern": null,
+    "filter": null,
+    "rankdir": "LR",
+    "force": false,
+    "dry_run": false
+  },
+  "inspect": {
+    "files": [],
+    "out_dir": null,
+    "dot": false,
+    "svg": false,
+    "png": false,
+    "interactive": false,
+    "plots": false,
+    "filter": null,
+    "force": false,
+    "dry_run": false
+  },
+  "run": {
+    "files": [],
+    "input_path": null,
+    "output": null,
+    "entry": null,
+    "provider": null
+  },
+  "lint": {
+    "files": [],
+    "fail_on_warn": false,
+    "check_remote": false
+  },
+  "verify": {
+    "files": []
+  },
+  "golden": {
+    "files": [],
+    "quiet": false,
+    "fail_fast": false
+  },
+  "models": {
+    "path": null,
+    "root": null,
+    "refresh_cache": false,
+    "refresh_import": null,
+    "externalize": 0,
+    "manifest_only": false,
+    "manifest_dir": null,
+    "overwrite": false,
+    "variant": null,
+    "metadata": null
+  },
+  "version": {
+    "short": false,
+    "json": false
+  },
+  "completion": {
+    "shell": "bash"
+  },
+  "vscode": {
+    "fuse.languageServerCommand": ""
+  }
+}

@@ -1,0 +1,106 @@
+#
+# SequenceManipulator: A fn for complex sequence transformations.
+#
+# Motivation:
+#   Standard sequence models (RNNs, Transformers) operate on sequences of fixed
+#   or padded lengths. However, many tasks require more complex manipulations
+#   like reversing, shuffling, sorting, or selecting subsequences based on dynamic
+#   conditions. This fn provides a high-level interface for such operations,
+#   which are often difficult to express with standard ONNX ops.
+#
+# Concept:
+#   This fn takes a sequence and a set of indices, and reorders the sequence
+#   according to those indices. The indices themselves can be computed dynamically,
+#   allowing for powerful, data-dependent sequence transformations.
+#
+#   - Inputs:
+#     - `sequence`: A tensor of shape `f32[batch, seq_len, dim]`.
+#     - `indices`: A tensor of shape `i64[batch, new_seq_len]` containing the
+#       indices to gather from the original sequence.
+#
+#   - Output:
+#     - A new sequence of shape `f32[batch, new_seq_len, dim]`.
+#
+# Formalism:
+#   This operation is a direct application of the `Gather` or `GatherElements`
+#   operator in ONNX. Given a sequence `S` and indices `I`, the output `S'` is
+#   defined as:
+#
+#   S'[b, i, d] = S[b, I[b, i], d]
+#
+#   This allows for a wide range of operations:
+#   - **Reversal:** `indices = [seq_len-1, seq_len-2, ..., 0]`
+#   - **Sub-selection:** `indices = [2, 5, 1]`
+#   - **Duplication:** `indices = [0, 0, 1, 1]`
+#   - **Sorting:** `indices` are the result of an `ArgSort` operation on some
+#     key derived from the sequence.
+#
+fn SequenceManipulator(
+    sequence: f32[batch, seq_len, dim],
+    indices: i64[batch, new_seq_len]
+) -> f32[batch, new_seq_len, dim] {
+    # The core of this operation is `Gather`. We need to make sure the indices
+    # have the right shape for batch gathering.
+    # `Gather` on axis=1 will select elements along the `seq_len` dimension.
+
+    new_sequence = Gather(data=sequence, indices=indices, axis=1)
+    return new_sequence
+}
+
+# --- Proofs ---
+
+@proof test_sequence_reversal() {
+    # A simple sequence of 3 items with 2 features each.
+    seq: f32[1, 4, 1] = [[[10.], [20.], [30.], [40.]]]
+
+    # Indices to reverse the sequence.
+    rev_indices: i64[1, 3] = [[2, 1, 0]]
+
+    # Call the fn to perform the reversal.
+    reversed_seq = SequenceManipulator(sequence=seq, indices=rev_indices)
+
+    asserted: f32[1, 3, 2] = [[[5.0, 6.0], [3.0, 4.0], [1.0, 2.0]]]
+
+    assert_close(reversed_seq, asserted)
+}
+
+@proof test_subsequence_selection() {
+    # A sequence of 4 items.
+    seq: f32[1, 4, 1] = [[[[10.], [20.], [30.], [40.]]]]
+
+    # Indices to select the 3rd, then 1st, then 3rd again.
+    sub_indices: i64[1, 3] = [[2, 0, 2]]
+
+    # Call the block.
+    sub_seq = SequenceManipulator(sequence=seq, indices=sub_indices)
+
+    asserted: f32[1, 3, 1] = [[[[30.], [10.], [30.]]]]
+
+    assert_close(sub_seq, asserted)
+}
+
+@proof test_batch_manipulation() {
+    # Two sequences in a batch.
+    seq: f32[2, 3, 1] = [
+        [[10.], [20.], [30.]], # Batch 1
+        [[40.], [50.], [60.]]  # Batch 2
+    ]
+
+    # Different manipulations for each item in the batch.
+    # Batch 1: reverse.
+    # Batch 2: select first and last.
+    indices: i64[2, 2] = [
+        [2, 0], # Indices for batch 1
+        [0, 2]  # Indices for batch 2
+    ]
+
+    # Call the block.
+    new_seq = SequenceManipulator(sequence=seq, indices=indices)
+
+    asserted: f32[2, 2, 1] = [
+        [[30.], [10.]], # Batch 1 result
+        [[40.], [60.]]  # Batch 2 result
+    ]
+
+    assert_close(new_seq, asserted)
+}

@@ -1,0 +1,51 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "onnx.cloud"
+@meta description = "Two-layer MLP with ReLU, used as a golden model for shape, broadcast, and canonicalization tests"
+
+# Scalar constant used to exercise tensor–scalar broadcast paths
+const alpha: f32 = 1.0
+
+# -----------------------------------------------------------------------------
+# dense_relu
+# -----------------------------------------------------------------------------
+# Fully-connected layer followed by ReLU.
+# - x:    [B, in_features]
+# - W:    [in_features, out_features]
+# - b:    [out_features] (broadcast over batch dimension)
+# - out:  [B, out_features]
+#
+# This fn is intentionally simple and side-effect free to make
+# fusion, lowering, and gradient generation easier to reason about.
+fn dense_relu(
+  x: f32[B, in_features],
+  W: f32[in_features, out_features],
+  b: f32[out_features]
+) -> f32[B, out_features] {
+  out = Relu(Add(MatMul(x, W), b))
+  out
+}
+
+# -----------------------------------------------------------------------------
+# model
+# -----------------------------------------------------------------------------
+# Minimal two-layer MLP.
+# - Uses symbolic batch dimension B to enforce shape polymorphism.
+# - Includes a redundant final ReLU to test canonicalization / idempotence.
+graph model(
+  x:  f32[B, features],
+  W0: f32[features, 32], b0: f32[32],
+  W1: f32[32, 32],       b1: f32[32]
+) -> f32[B, 32] {
+  # First dense + activation
+  x1 = dense_relu(x, W0, b0)
+
+  # Second dense + activation
+  x2 = dense_relu(x1, W1, b1)
+
+  # Intentional extra activation
+  out = Relu(x2)
+  out
+}

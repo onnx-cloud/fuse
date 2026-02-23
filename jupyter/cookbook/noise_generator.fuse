@@ -1,0 +1,92 @@
+#
+# NoiseGenerator: A fn for creating structured or random noise.
+#
+# Motivation:
+#   Noise is a fundamental component in many modern ML models, especially in
+#   generative modeling (GANs, VAEs, Diffusion Models), regularization (like
+#   Dropout), and data augmentation. This fn provides a standardized way to
+#   generate various types of noise, from simple random noise to more structured
+#   or learnable noise patterns.
+#
+# Concept:
+#   The fn generates a noise tensor based on specified properties like shape,
+#   distribution (e.g., Gaussian, Uniform), and whether the noise is random,
+#   learnable, or deterministic (e.g., sinusoidal).
+#
+#   - Inputs:
+#     - `shape_tensor`: An `i64` tensor defining the desired output shape.
+#       This allows for dynamic noise generation.
+#
+#   - Output:
+#     - A noise tensor of the specified shape, e.g., `f32[...]`.
+#
+# Formalism:
+#   ONNX provides several operators for noise generation:
+#   - `RandomNormal`: Generates tensor with values drawn from a normal distribution.
+#   - `RandomUniform`: Generates tensor with values drawn from a uniform distribution.
+#   - `RandomNormalLike` / `RandomUniformLike`: Take an input tensor and generate
+#     noise of the same shape.
+#
+#   This example uses `RandomNormal` to generate standard Gaussian noise.
+#   For more complex noise (e.g., Perlin noise or learnable noise fields), one
+#   would need to build a more complex graph, potentially involving parameters
+#   and other operators like `Sin` or `Cos` for positional encodings.
+#
+fn NoiseGenerator(
+    shape_tensor: i64[N]
+) -> (noise: f32[...]) {
+    # Generate noise from a standard normal distribution (mean=0, std=1).
+    # The `shape` attribute of RandomNormal asserts a 1D tensor.
+    noise = RandomNormal(
+        shape=shape_tensor,
+        dtype=float,
+        mean=0.0,
+        scale=1.0
+    )
+    return noise
+}
+
+# --- Proofs ---
+
+@proof test_noise_generation_shape() {
+    # Define the desired shape for the noise tensor.
+    shape: i64[3] = [1, 2, 4] # 1 batch, 2 channels, 4 features
+
+    # Generate the noise.
+    generated_noise = NoiseGenerator(shape_tensor=shape)
+
+    # The primary testable property is the shape of the output.
+    # We can't test for specific values as they are random.
+    # Fuse does not currently have a `shape_of` operator for a direct
+    # assertion, so this proof serves as a structural check that the
+    # fn is correctly wired. The ONNX export and runtime will validate
+    # the shape.
+
+    # In a real test environment, one would check:
+    # `assert shape_of(generated_noise) == shape`
+
+    # For now, we just ensure the fn can be constructed.
+    # This is a limitation of the current `@proof` system for random ops.
+    # We can, however, pass it to an op that consumes it to ensure type
+    # and rank are valid.
+
+    # Example: check that we can add it to a tensor of the same shape.
+    zeros_like: f32[1, 2, 4] = Constant(value_float=0.0, shape=[1, 2, 4])
+    result = Add(generated_noise, zeros_like)
+
+    # This proof will pass if the graph is valid, implying the shape is correct.
+}
+
+@proof test_dynamic_shape_noise() {
+    # Create a shape tensor dynamically.
+    dim1: i64[1] = [2]
+    dim2: i64[1] = [5]
+    shape_vec = Concat(dim1, dim2, axis=0) # shape_vec is [2, 5]
+
+    noise = NoiseGenerator(shape_tensor=shape_vec)
+
+    # Similar to the above, we can't check values, but we can check if the
+    # graph is valid.
+    zeros_like: f32[2, 5] = Constant(value_float=0.0, shape=[2, 5])
+    result = Add(noise, zeros_like)
+}

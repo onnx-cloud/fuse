@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fuse Lint JSON Schema",
+  "description": "Schema for `fuse lint --json` output",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": { "type": "string" },
+          "kind": { "type": "string", "enum": ["warning", "error"] },
+          "message": { "type": "string" },
+          "node": {},
+          "code": { "type": "string" },
+          "param": { "type": "string" },
+          "state": { "type": "string" },
+          "expected_output": { "type": "string" }
+        },
+        "required": ["kind", "message"]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": { "type": "string" },
+          "kind": { "type": "string", "enum": ["warning", "error"] },
+          "message": { "type": "string" },
+          "node": {},
+          "code": { "type": "string" },
+          "param": { "type": "string" },
+          "state": { "type": "string" },
+          "expected_output": { "type": "string" }
+        },
+        "required": ["kind", "message"]
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": { "type": "string" },
+          "kind": { "type": "string", "enum": ["warning", "error"] },
+          "message": { "type": "string" },
+          "node": {},
+          "code": { "type": "string" },
+          "param": { "type": "string" },
+          "state": { "type": "string" },
+          "expected_output": { "type": "string" }
+        },
+        "required": ["kind", "message"]
+      }
+    }
+  },
+  "required": ["messages"]
+}

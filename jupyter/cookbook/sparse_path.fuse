@@ -1,0 +1,76 @@
+#
+# SparsePath: Skips computation on irrelevant features or channels.
+#
+# Motivation:
+#   In high-dimensional data, it's common for many features to be irrelevant
+#   or zero for a given sample. Processing these features wastes computation.
+#   The SparsePath fn provides a way to dynamically identify and skip
+#   computation on these irrelevant parts of the input, leading to more
+#   efficient models. This is a form of "conditional computation."
+#
+# Concept:
+#   This fn uses a learned or provided mask to set irrelevant features to
+#   zero. Subsequent layers in a network can then be designed to exploit this
+#   sparsity, for example, by using sparse matrix multiplication.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `mask` (optional): A boolean tensor of the same shape as `input`.
+#       If not provided, a mask is generated dynamically.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` where elements corresponding to `false`
+#       in the mask are set to zero.
+#
+# Formalism:
+#   The output `Y` is the element-wise product of the input `X` and a mask `M`
+#   (cast to float).
+#
+#   Y_ij = X_ij * float(M_ij)
+#
+#   This is equivalent to using the `Where` operator:
+#
+#   Y_ij = X_ij   if M_ij is true
+#          0      if M_ij is false
+#
+fn SparsePath(
+    input: f32[N, dim],
+    mask: bool[N, dim]
+) -> f32[N, dim] {
+    # The `Where` operator is a direct way to implement this.
+    # It selects from the `input` where the mask is true, and from a
+    # tensor of zeros otherwise.
+    zeros = Zeros<like=input>()
+    output = Where(mask, input, zeros)
+    return output
+}
+
+# --- Proofs ---
+
+@proof test_sparse_path_masking() {
+    # Input data.
+    input_data: f32[3, 4] = [
+        [1.0, 2.0, 3.0, 4.0],
+        [5.0, 6.0, 7.0, 8.0],
+        [9.0, 10.0, 11.0, 12.0]
+    ]
+
+    # A boolean mask to select which elements to keep.
+    mask_data: bool[3, 4] = [
+        [true, false, true, false],
+        [false, false, true, true],
+        [true, true, false, false]
+    ]
+
+    # Run the SparsePath block.
+    result = SparsePath(input_data, mask_data)
+
+    # asserted output, with masked elements set to zero.
+    asserted: f32[3, 4] = [
+        [1.0, 0.0, 3.0, 0.0],
+        [0.0, 0.0, 7.0, 8.0],
+        [9.0, 10.0, 0.0, 0.0]
+    ]
+
+    assert_close(result, asserted)
+}

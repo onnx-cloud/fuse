@@ -1,0 +1,18 @@
+# Cookbook: L1-style anomaly score (scaled L1 distance to center)
+# Ops: Sub, Abs, ReduceSum, Add, Div, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+fn l1_score(x: f32[3]) -> f32[1] {
+  center: f32[3] = [0.0, 0.0, 0.0]
+  shape_one: i64[1] = [1]
+  diff = Abs(Sub(x, center))
+  axes0: i64[1] = [0]
+  total = ReduceSum(diff, axes0, keepdims@=0)
+  norm = Add(total, 1.0)
+  inv = Div(1.0, norm)
+  Reshape(inv, shape_one)
+}

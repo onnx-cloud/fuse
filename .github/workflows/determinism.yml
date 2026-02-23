@@ -1,0 +1,25 @@
+name: Determinism check
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m venv .venv && . .venv/bin/activate
+          uv pip install -r requirements-dev.txt
+      - name: Run deterministic partition (3x)
+        run: |
+          # Run a small, targeted test that is expected to be deterministic.
+          python -m pytest tests/determinism/test_repeat_partition.py -q
+          python -m pytest tests/determinism/test_repeat_partition.py -q
+          python -m pytest tests/determinism/test_repeat_partition.py -q

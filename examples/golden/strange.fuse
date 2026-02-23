@@ -1,0 +1,27 @@
+@fuse 0.7
+@opset onnx 19
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+# Minimal general strange-loop graph using inline loop body
+graph strange_loop(
+    max_iters: i64 = 8
+) -> f32 {
+
+    # accumulates state
+    state_out = loop (max_iters, true, 0.0) {
+        # Add 1 to state on each iteration
+        new_state = Add(state_in, 1.0)
+        
+        # Continue while state < 10
+        keep = Less(new_state, 10.0)
+        
+        # Next iteration
+        next_i = Add(i, 1)
+        
+        return next_i, keep, new_state
+    }
+
+    return state_out
+}
+

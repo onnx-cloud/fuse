@@ -1,0 +1,26 @@
+# Cookbook: One-class SVM-like RBF score using exp(-0.5 * squared_norm)
+# Ops: Sub, Mul, ReduceSum, Exp, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+
+fn one_class_svm_score(x: f32[3]) -> f32[1] {
+  center: f32[3] = [0.0, 0.0, 0.0]
+  shape_one: i64[1] = [1]
+  diff = Sub(x, center)
+  squared = Mul(diff, diff)
+  sum_sq = ReduceSum(squared, axes0, keepdims@=0)
+  scaled = Mul(sum_sq, -0.5)
+  score = Exp(scaled)
+  Reshape(score, shape_one)
+}
+
+@proof graph test_one_class_svm_score() {
+  sample = [1.0, 0.0, 0.0]
+  out = one_class_svm_score(sample)
+  assert out == [0.6065307]
+}

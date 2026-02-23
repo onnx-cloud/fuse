@@ -1,0 +1,16 @@
+{
+  "chatWrapper": ".fuse-chat-wrapper { display:flex; flex-direction:column; height:100%; font-family: var(--jp-ui-font-family, Inter, Arial, sans-serif); color: var(--jp-ui-font-color1, #222); }",
+  "chatHeader": ".fuse-chat-header { display:flex; align-items:center; gap:8px; padding:8px; border-bottom:1px solid #e6e6e6; background:var(--jp-layout-color1, #fff);} ",
+  "chatLog": ".fuse-chat-log { flex:1; overflow:auto; padding:12px; background:var(--jp-layout-color2, #fafafa);} ",
+  "msgUser": ".fuse-chat-msg-user { text-align:right; margin:6px 0; }",
+  "msgCopilot": ".fuse-chat-msg-copilot { text-align:left; margin:6px 0; }",
+  "bubbleUser": ".fuse-chat-bubble-user { display:inline-block; background:#2563eb; color:white; padding:8px 12px; border-radius:12px; max-width:80%; }",
+  "bubbleCopilot": ".fuse-chat-bubble-copilot { display:inline-block; background:#eef2ff; color:#1e293b; padding:8px 12px; border-radius:12px; max-width:80%; }",
+  "controls": ".fuse-chat-controls { display:flex; align-items:center; gap:8px; padding:8px; border-top:1px solid #e6e6e6; }",
+  "engineSelect": ".fuse-chat-engine { padding:6px 8px; border-radius:4px; }",
+  "input": ".fuse-chat-input { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; }",
+  "btn": ".fuse-chat-button { padding:8px 10px; border-radius:6px; background:var(--jp-brand-color1, #2563eb); color:white; border:none; cursor:pointer; }",
+  "smallBtn": ".fuse-chat-small { padding:6px 8px; border-radius:6px; border:1px solid #ddd; background:white; cursor:pointer; }",
+  "meta": ".fuse-chat-meta { font-size:0.8em; color:#6b7280; margin-left:6px; }",
+  "logLine": ".fuse-chat-line { margin:6px 0; }"
+}

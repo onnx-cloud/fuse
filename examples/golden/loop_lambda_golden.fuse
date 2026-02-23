@@ -1,0 +1,18 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@id "https://ns.onnx.cloud/examples.golden.loop_lambda"
+
+# Demonstrate Loop with arrow-lambda shorthand and a golden numeric check.
+
+fn loop_sum(n: i64) -> f32 {
+  out = Loop<
+    body=(iter, cond, acc) => (Greater(<f32>(iter), <f32>(-1000.0)), Add(acc, <f32>(iter)))
+  >(n, true, [0.0])
+}
+
+@golden @proof golden() {
+  out = loop_sum(5)
+  assert out == [10.0]
+}

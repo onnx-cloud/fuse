@@ -1,0 +1,27 @@
+# LOF-inspired score comparing sample distance to a reference
+# Ops: Sub, Abs, ReduceSum, Div, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+
+@type "urn:jupyter.cookbook.lof_score"
+
+graph lof_score(x: f32[3]) -> f32[1] {
+  center: f32[3] = [0.0, 0.0, 0.0]
+  reference: f32[3] = [0.1, -0.1, 0.0]
+  shape_one: i64[1] = [1]
+  dist = ReduceSum(Abs(Sub(x, center)), axes0, keepdims@=0)
+  ref_dist = ReduceSum(Abs(Sub(reference, center)), axes0, keepdims@=0)
+  ratio = Div(dist, Add(ref_dist, 1.0))
+  Reshape(ratio, shape_one)
+}
+
+@proof graph test_lof_score() {
+  sample = [1.0, 0.0, 0.0]
+  out = lof_score(sample)
+  assert out == [0.8333333]
+}

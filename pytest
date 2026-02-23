@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Lightweight wrapper to ensure tests run with the repository virtualenv when
+# available. This lets contributors type `./pytest ...` and avoid activating
+# the venv manually.
+set -euo pipefail
+if [[ -x ".venv/bin/python" ]]; then
+  exec ".venv/bin/python" -m pytest "$@"
+else
+  # Fallback to system pytest if venv is not available
+  exec pytest "$@"
+fi

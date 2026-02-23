@@ -1,0 +1,26 @@
+# Cookbook: DBSCAN-like core-point decision via distance threshold
+# Ops: Sub, Mul, ReduceSum, Less, Cast, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+
+fn dbscan_label(x: f32[2]) -> i64[1] {
+  core: f32[2] = [0.0, 0.0]
+  shape_one: i64[1] = [1]
+  diff = Sub(x, core)
+  sq = Mul(diff, diff)
+  dist = ReduceSum(sq, axes0, keepdims@=0)
+  mask = Less(dist, 2.0)
+  label = Cast(mask, to@=7)
+  Reshape(label, shape_one)
+}
+
+@proof graph test_dbscan_label_core() {
+  sample = [1.0, 0.5]
+  out = dbscan_label(sample)
+  assert out == [1]
+}

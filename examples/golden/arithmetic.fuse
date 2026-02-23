@@ -1,0 +1,55 @@
+# Cookbook: Algebraic smoke test — single fn / single graph
+# Ops: Add, Mul (+ / @ sugar mixed)
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+# --- constants ---
+const ZERO1: f32[1] = [0]
+const ONE1:  f32[1] = [1]
+
+const ADD4: f32[4] = [1, 2, 3, 4]
+const MUL4: f32[4] = [2, 3, 4, 5]
+
+# --- single comprehensive fn ---
+fn algebra_smoke(
+  x1: f32[1],   # scalar/broadcast lane
+  x4: f32[4]    # vector lane
+) -> (f32[1], f32[4]) {
+
+  # --- identity lane (explicit ops) ---
+  id_add = Add(x1, ZERO1)   # x + 0
+  id_mul = Mul(id_add, ONE1) # (x + 0) * 1
+
+  # --- vector lane (sugar) ---
+  v_mul = x4 + ADD4 @ MUL4      # sugar
+
+  # --- mixed chain (cross-lane + mixed syntax) ---
+  # broadcast x1 into x4 implicitly
+  mix1 = x4 + id_mul        # sugar Add
+  mix2 = Mul(mix1, MUL4)    # explicit Mul
+
+  # --- reorder + re-touch identities ---
+  # forces multiple lowering paths
+  r1 = id_mul + ZERO1       # sugar identity revisit
+  r2 = Add(v_mul, mix2)     # explicit Add merge
+
+  # --- final mul via sugar on merged path ---
+  out4 = r2 @ ONE1          # no-op mul but exercises @ on vector
+  out1 = r1                 # scalar lane already fully exercised
+
+  return (out1, out4)
+}
+
+# --- single graph ---
+@proof graph arithmetic() {
+  a1: f32[1] = [1]
+  a4: f32[4] = [1,2,3,4]
+
+  r1, r4 = algebra_smoke(a1, a4)
+
+  return r1, r4
+}

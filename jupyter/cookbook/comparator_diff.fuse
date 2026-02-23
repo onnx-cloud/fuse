@@ -1,0 +1,76 @@
+#
+# ComparatorDiff: Computes differences, distances, or divergences between inputs.
+#
+# Motivation:
+#   This fn is a synonym for `ContrastiveDiffBlock`. Its purpose is to
+#   quantify the relationship between two inputs. This is a fundamental operation
+#   in many machine learning tasks. In contrastive learning, it's used to separate
+#   positive and negative pairs. In anomaly detection, it can measure the deviation
+#   of a sample from a "normal" prototype. In metric learning, it's the basis for
+#   learning a distance function.
+#
+# Concept:
+#   This fn takes two tensors and computes a measure of their difference.
+#   This could be a simple element-wise subtraction, or it could be a more
+#   complex distance metric like Euclidean distance or cosine similarity.
+#
+#   - Inputs:
+#     - `input1`: A tensor of shape `f32[N, dim]`.
+#     - `input2`: A tensor of shape `f32[N, dim]`.
+#     - `metric`: A string specifying the difference metric ("diff", "l2_dist").
+#
+#   - Output:
+#     - A tensor representing the difference or distance. The shape depends on
+#       the metric.
+#
+# Formalism:
+#   - `metric="diff"`: Element-wise subtraction.
+#     `Y = X1 - X2` (Output shape: `[N, dim]`)
+#   - `metric="l2_dist"`: Euclidean distance.
+#     `Y = sqrt(Σ_j (X1_j - X2_j)^2)` (Output shape: `[N, 1]`)
+#
+fn ComparatorDiff(
+    input1: f32[N, dim],
+    input2: f32[N, dim],
+    metric: str = "diff"
+) -> f32[N, 1] {
+    # This conceptual fn would use conditional logic.
+    # We implement the "l2_dist" case as an example.
+
+    # 1. Compute the element-wise difference.
+    difference = Sub(input1, input2)
+
+    # 2. Square the differences.
+    squared_diff = Pow(difference, 2.0)
+
+    # 3. Sum the squares along the feature dimension.
+    sum_sq_diff = ReduceSum(squared_diff, axes=[1], keepdims@=1)
+
+    # 4. Take the square root to get the L2 distance.
+    l2_distance = Sqrt(sum_sq_diff)
+
+    return l2_distance
+}
+
+# --- Proofs ---
+
+@proof test_comparator_diff_l2_distance() {
+    in1: f32[2, 3] = [
+        [1.0, 2.0, 3.0],  # Vector 1
+        [10.0, 10.0, 10.0] # Vector 2
+    ]
+    in2: f32[2, 3] = [
+        [1.0, 2.0, 3.0],  # Identical to Vector 1
+        [13.0, 14.0, 10.0] # Different from Vector 2
+    ]
+
+    # Run the block.
+    distances = ComparatorDiff(in1, in2, metric="l2_dist")
+
+    # asserted distances:
+    # Row 1: The vectors are identical, so the distance is 0.
+    # Row 2: diff = [-3, -4, 0]. sq_diff = [9, 16, 0]. sum_sq = 25. sqrt = 5.
+    asserted: f32[2, 1] = [[0.0], [5.0]]
+
+    assert_close(distances, asserted)
+}

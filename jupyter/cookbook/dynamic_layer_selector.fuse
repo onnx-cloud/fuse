@@ -1,0 +1,100 @@
+#
+# DynamicLayerSelector: Chooses which layer(s) to activate per input dynamically.
+#
+# Motivation:
+#   Deep neural networks can be computationally expensive, as every input must
+#   pass through every layer. However, not all inputs require the same depth of
+#   computation. Simpler inputs might be classifiable with fewer layers, while
+#   more complex ones need deeper processing. A Dynamic Layer Selector allows the
+#   network to learn a routing policy, choosing which layers to execute for a
+#   given input, potentially saving significant computation.
+#
+# Concept:
+#   This fn uses a "routing" or "gating" function to decide whether to apply
+#   a specific layer (a "branch") or to bypass it (an "identity" path). The
+#   decision is made dynamically for each input.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `layer_branch`: A subgraph (block) representing the layer to be
+#       conditionally executed.
+#     - `condition_node`: A subgraph that takes the input and produces a boolean
+#       decision for each sample in the batch.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]`, which is either the output of the
+#       `layer_branch` or the original `input`, based on the condition.
+#
+# Formalism:
+#   For each input sample `x_i` in the batch `X`:
+#   1. A boolean condition `c_i` is computed: `c_i = condition_node(x_i)`.
+#   2. The final output `y_i` is determined by a multiplexer-like operation:
+#
+#      y_i = layer_branch(x_i)   if c_i is true
+#            x_i                 if c_i is false
+#
+#   This is implemented efficiently using the `Where` operator in ONNX.
+#
+# `layer_branch` should be `block(f32[N, dim]) -> (f32[N, dim])`.
+# `condition_node` should be `block(f32[N, dim]) -> (bool[N])`.
+fn DynamicLayerSelector(
+    input: f32[N, dim],
+    layer_branch: block,
+    condition_node: block
+) -> f32[N, dim] {
+    # 1. Get the boolean decisions from the condition function.
+    condition = condition_node(input) # Shape: [N]
+
+    #2. Compute the output of the layer branch.
+    branch_output = layer_branch(input)
+
+    # 3. Select between the branch output and the original input.
+    # The `Where` operator needs the condition to be broadcastable to the
+    # shape of the other inputs. We `Unsqueeze` the `[N]` condition to `[N, 1]`
+    # so it can be broadcast to `[N, dim]`.
+    condition_reshaped = Unsqueeze(condition, axes=[1])
+
+    # `Where(condition, X, Y)` selects from X if condition is true, else from Y.
+    output = Where(condition_reshaped, branch_output, input)
+    return output
+}
+
+# --- Proofs ---
+
+# A simple layer that adds 10 to the input.
+fn AddTenLayer(input: f32[N, dim]) -> f32[N, dim] {
+    return Add(input, 10.0)
+}
+
+# A condition function that returns true if the row sum is > 10.
+fn RowSumCondition(input: f32[N, dim]) -> bool[N] {
+    row_sums = ReduceSum(input, axes=[1], keepdims@=0)
+    return Greater(row_sums, 10.0)
+}
+
+@proof test_dynamic_layer_selector() {
+    # Input data where some rows will trigger the condition and some won't.
+    input_data: f32[4, 2] = [
+        [1.0, 1.0],   # Sum = 2.0  (cond=false) -> bypass
+        [10.0, 1.0],  # Sum = 11.0 (cond=true)  -> apply layer
+        [4.0, 5.0],   # Sum = 9.0  (cond=false) -> bypass
+        [8.0, 8.0]    # Sum = 16.0 (cond=true)  -> apply layer
+    ]
+
+    # Run the selector.
+    result = DynamicLayerSelector(input_data, AddTenLayer, RowSumCondition)
+
+    # asserted output:
+    # Row 1: Bypassed -> [1.0, 1.0]
+    # Row 2: Layer applied -> [10+10, 1+10] = [20.0, 11.0]
+    # Row 3: Bypassed -> [4.0, 5.0]
+    # Row 4: Layer applied -> [8+10, 8+10] = [18.0, 18.0]
+    asserted: f32[4, 2] = [
+        [1.0, 1.0],
+        [20.0, 11.0],
+        [4.0, 5.0],
+        [18.0, 18.0]
+    ]
+
+    assert_close(result, asserted)
+}

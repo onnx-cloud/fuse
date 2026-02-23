@@ -1,0 +1,33 @@
+# Cookbook: Two-component GMM posterior approximation (unnormalized Gaussian scores)
+# Ops: Sub, Mul, ReduceSum, Exp, Add, Div, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+
+fn gmm_posterior(x: f32[2]) -> f32[1] {
+  mean_a: f32[2] = [0.0, 0.0]
+  mean_b: f32[2] = [1.0, 1.0]
+  shape_one: i64[1] = [1]
+  diff_a = Sub(x, mean_a)
+  diff_b = Sub(x, mean_b)
+  sq_a = Mul(diff_a, diff_a)
+  sq_b = Mul(diff_b, diff_b)
+  sum_a = ReduceSum(sq_a, axes0, keepdims@=0)
+  sum_b = ReduceSum(sq_b, axes0, keepdims@=0)
+  score_a = Exp(Mul(sum_a, -0.5))
+  score_b = Exp(Mul(sum_b, -0.5))
+  mixture = Add(score_a, score_b)
+  norm = Add(mixture, 1.0)
+  posterior = Div(score_b, norm)
+  Reshape(posterior, shape_one)
+}
+
+@proof graph test_gmm_posterior() {
+  sample = [0.0, 0.0]
+  out = gmm_posterior(sample)
+  assert out == [0.1553624]
+}

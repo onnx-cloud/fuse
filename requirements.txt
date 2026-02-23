@@ -1,0 +1,16 @@
+onnx
+lark-parser
+pygls
+numpy
+pytest
+nbformat
+papermill
+nbconvert
+jupyter
+flake8
+pre-commit
+ 
+# optional dependencies for various backends
+# onnx2pytorch
+# torch
+# tensorflow

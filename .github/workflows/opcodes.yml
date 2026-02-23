@@ -1,0 +1,25 @@
+name: OpCodes Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/OpCodes.json'
+  push:
+    branches:
+      - main
+
+jobs:
+  check-opcodes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: |
+          python -m uv pip install --upgrade pip
+          uv pip install -r requirements-dev.txt
+      - name: Run OpCodes checksum test
+        run: python -m pytest tests/test_opcodes_immutable.py -q

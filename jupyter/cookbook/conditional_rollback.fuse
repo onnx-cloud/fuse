@@ -1,0 +1,95 @@
+#
+# ConditionalRollback: Evaluates multiple branch outcomes and selects optimal counterfactual.
+#
+# Motivation:
+#   In decision-making processes, it's often useful to explore multiple "what-if"
+#   scenarios. For example, a self-driving car might need to evaluate the outcome
+#   of turning left vs. turning right. This fn provides a mechanism to compute
+#   the results of several hypothetical scenarios (branches) and then select the
+#   best one based on a scoring function. It's a form of counterfactual evaluation.
+#
+# Concept:
+#   This fn takes an input, runs it through multiple independent "branch"
+#   functions, scores the outcome of each branch, and returns the output of the
+#   branch with the highest score.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `branches`: A list of subgraphs (blocks), each representing a different
+#       computational path or scenario.
+#     - `scoring_node`: A subgraph that takes the output of a branch and returns a
+#       single scalar score.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]`, which is the output of the highest-scoring
+#       branch.
+#
+# Formalism:
+#   For each branch `b_i` in `branches`:
+#   1. Compute the branch output: `O_i = b_i(input)`.
+#   2. Compute the score for that output: `S_i = scoring_node(O_i)`.
+#
+#   Then, find the index `i*` of the branch with the maximum score:
+#   `i* = argmax_i(S_i)`
+#
+#   The final output is the output of the winning branch: `O_i*`.
+#
+fn ConditionalRollback(
+    # `branches` is a list of blocks with signature `block(f32[N, dim]) -> (f32[N, dim])`.
+    input: f32[N, dim],
+    branches: list,
+    scoring_node: fn  # block(f32[N, dim]) -> f32[N, 1]
+) -> (f32[N, dim]) {
+    # This is a simplified conceptual implementation. A full implementation
+    # in ONNX would be more complex, likely requiring a Loop operator to
+    # iterate through the branches, or unrolling the loop if the number of
+    # branches is fixed and small.
+
+    # 1..4. Conceptual implementation note:
+    # The intended behaviour is to (a) run each branch on `input`, (b) score
+    # each output with `scoring_node`, (c) pick the best branch index per batch
+    # element, and (d) select the corresponding branch output. Expressing this
+    # precisely requires Loop/GatherND and is left as conceptual here.
+    # See `SimpleRollback` below for a concrete, testable variant.
+    return input  # placeholder (conceptual block)
+}
+
+# --- Proofs with a concrete, simplified version ---
+
+fn SimpleRollback(
+    input: f32[N, dim],
+    branch1_out: f32[N, dim],
+    branch2_out: f32[N, dim],
+    selector: bool[N]
+) -> (f32[N, dim]) {
+    # A simplified version where the branch outputs are pre-computed and
+    # the selection is done with a simple boolean mask.
+    # `selector`=true chooses branch2, `selector`=false chooses branch1.
+    return Where(Reshape(selector, [N, 1]), branch2_out, branch1_out)
+}
+
+
+@proof test_conditional_rollback_selection() {
+    input_data: f32[4, 2] = [[1,1], [2,2], [3,3], [4,4]]
+
+    # Pre-computed outputs of two hypothetical branches
+    b1_output: f32[4, 2] = [[10,10], [20,20], [30,30], [40,40]]
+    b2_output: f32[4, 2] = [[-1,-1], [-2,-2], [-3,-3], [-4,-4]]
+
+    # A boolean selector mask.
+    # true -> select branch 2
+    # false -> select branch 1
+    selector_mask: bool[4] = [false, true, false, true]
+
+    result = SimpleRollback(input_data, b1_output, b2_output, selector_mask)
+
+    # asserted result based on the selector mask
+    asserted: f32[4, 2] = [
+        [10, 10], # sel=false -> branch 1
+        [-2, -2], # sel=true  -> branch 2
+        [30, 30], # sel=false -> branch 1
+        [-4, -4]  # sel=true  -> branch 2
+    ]
+
+    assert_close(result, asserted)
+}

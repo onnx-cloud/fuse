@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fuse CLI Config",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "properties": {
+        "verbose": {"type": "integer"},
+        "quiet": {"type": "boolean"},
+        "version": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "compile": {
+      "type": "object",
+      "properties": {
+        "files": {"type": "array", "items": {"type": "string"}},
+        "out_dir": {"type": ["string", "null"]},
+        "refresh_cache": {"type": "boolean"},
+        "refresh_import": {"type": ["string", "null"]},
+        "folds": {"type": "integer"},
+        "externalize": {"type": "integer"},
+        "external_dir": {"type": ["string", "null"]},
+        "preserve_external": {"type": "boolean"},
+        "wasm": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "dot": {
+      "type": "object",
+      "properties": {
+        "files": {"type": "array", "items": {"type": "string"}},
+        "svg": {"type": ["string", "null"]},
+        "png": {"type": ["string", "null"]},
+        "dot": {"type": ["string", "null"]},
+        "out_dir": {"type": ["string", "null"]},
+        "name_pattern": {"type": ["string", "null"]},
+        "filter": {"type": ["string", "null"]},
+        "rankdir": {"type": "string"},
+        "force": {"type": "boolean"},
+        "dry_run": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "inspect": {"type": "object"},
+    "run": {"type": "object"},
+    "lint": {"type": "object"},
+    "verify": {"type": "object"},
+    "golden": {"type": "object"},
+    "models": {"type": "object"},
+    "version": {"type": "object"},
+    "completion": {"type": "object"},
+    "vscode": {
+      "type": "object",
+      "properties": {
+        "fuse.languageServerCommand": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

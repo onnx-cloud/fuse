@@ -1,0 +1,17 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+# Cookbook: Attribute syntax demonstration (`keepdims@=0`)
+# Ops: ReduceSum
+
+fn attr_new(x: f32[3]) -> f32[1] {
+  axes: i64[1] = [0]
+  ReduceSum(x, axes, keepdims@=0)
+}
+
+@proof graph test_attrs() {
+  out = attr_new([1.0, 0.0, 0.0])
+  assert out == [1.0]
+}

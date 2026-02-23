@@ -1,0 +1,80 @@
+#
+# Perturbation: Computes outputs under controlled input variations.
+#
+# Motivation:
+#   Understanding how a model responds to small changes in its input is crucial
+#   for assessing its robustness and sensitivity. By systematically adding small,
+#   controlled "perturbations" (or noise) to the input and observing the output,
+#   we can identify which input features the model is most sensitive to. This is
+#   foundational for techniques like adversarial testing and feature importance analysis.
+#
+# Concept:
+#   This fn adds a noise tensor to the input tensor. The noise can be generated
+#   randomly or be a specific, predefined pattern to test a hypothesis about the
+#   model's behavior.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `noise_type` (optional): A string specifying the type of random noise
+#       to generate ('uniform' or 'normal').
+#     - `magnitude` (optional): A scalar controlling the strength of the noise.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` which is the sum of the input and the
+#       generated noise.
+#
+# Formalism:
+#   The output `Y` is the element-wise sum of the input `X` and a noise tensor `P`.
+#
+#   Y = X + P
+#
+#   The noise tensor `P` is generated with the same shape as `X`.
+#   - For 'uniform' noise, `P_ij` is sampled from `Uniform(-magnitude, magnitude)`.
+#   - For 'normal' noise, `P_ij` is sampled from `Normal(0, magnitude)`.
+#
+fn Perturbation(
+    input: f32[N, dim],
+    noise_type: str = "uniform",
+    magnitude: f32 = 0.1
+) -> (perturbed_output: f32[N, dim]) {
+    # Get the shape of the input tensor to generate noise of the same size.
+    shape = Shape(input)
+
+    # Generate the random noise tensor.
+    noise = if noise_type == "uniform" {
+        # Generates values uniformly distributed between -magnitude and +magnitude.
+        RandomUniform<shape=shape, low=-magnitude, high=magnitude, dtype=f32>()
+    } else {
+        # Generates values from a normal distribution with mean 0 and std dev `magnitude`.
+        RandomNormal<shape=shape, mean=0.0, scale=magnitude, dtype=f32>()
+    }
+
+    # Add the generated noise to the input tensor.
+    perturbed_output = Add(input, noise)
+    return perturbed_output
+}
+
+@proof test_perturbation_additive_noise() {
+    # This proof uses a deterministic "noise" tensor to verify the additive logic.
+    # In practice, the noise would be generated randomly.
+    input_tensor: f32[2, 3] = [
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0]
+    ]
+
+    # A predefined noise tensor.
+    noise_tensor: f32[2, 3] = [
+        [0.1, -0.2, 0.0],
+        [-1.0, 0.5, 0.0]
+    ]
+
+    # Manually add the noise to the input.
+    perturbed = Add(input_tensor, noise_tensor)
+
+    asserted_output: f32[2, 3] = [
+        [1.1, 1.8, 3.0],
+        [3.0, 5.5, 6.0]
+    ]
+
+    assert_close(perturbed, asserted_output)
+}

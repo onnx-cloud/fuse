@@ -1,0 +1,109 @@
+#
+# MetaResidual: Per-feature gated residual connection
+#
+# Concept:
+#   Computes a weighted sum of two input tensors, where the weights (gates) are
+#   dynamically generated from the first input. This allows the network to
+#   adaptively control how much of each input to pass through.
+#
+#   - Inputs:
+#     - `x1`: The primary input tensor of shape `f32[N, dim]`.
+#     - `x2`: The secondary (residual) input tensor of shape `f32[N, dim]`.
+#     - `gating_node` (optional): A subgraph (block) that computes the gating
+#       values. If not provided, a default linear gating function is used.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` representing the gated combination of
+#       `x1` and `x2`.
+#
+#   - Behavior:
+#     1. A gating value `g` is computed for each feature in `x1`. This value is
+#        typically between 0 and 1.
+#     2. The final output is calculated as: `g * x1 + (1 - g) * x2`.
+#     3. If `g` is close to 1, the output is mostly `x1`. If `g` is close to 0,
+#        the output is mostly `x2`.
+#
+# Example Use Case:
+#   - Adaptive residual paths in deep networks: In a deep neural network,
+#     `MetaResidual` can be used to let the model decide whether to skip a
+#     transformation (`x2`) or apply it (`x1`), based on the input itself.
+#
+fn DefaultGating(input: f32[N, dim]) -> (gate: f32[N, dim]) {
+    # A simple linear gating function followed by a sigmoid to produce gates [0, 1].
+    # This is a common pattern for generating dynamic weights.
+    # These weights would be learned during model training.
+    gate_w = param(shape=[dim, dim], init="glorot_uniform")
+    gate_b = param(shape=[dim], init="zeros")
+
+    logits = MatMul(input, gate_w) + gate_b
+    gate = Sigmoid(logits)
+    return gate
+}
+
+fn MetaResidual(
+    x1: f32[N, dim],
+    x2: f32[N, dim],
+    gating_node: fn = DefaultGating  # block(f32[N, dim]) -> f32[N, dim]
+) -> (output: f32[N, dim]) {
+    # Generate the gating values by applying the gating function to the primary input x1.
+    gate = gating_node(x1)
+
+    # The core logic of the residual gate: output = gate * x1 + (1 - gate) * x2
+    # `Mul` performs element-wise multiplication.
+    term1 = Mul(gate, x1)
+
+    # `Sub(1.0, gate)` computes the complementary gate.
+    term2 = Mul(Sub(1.0, gate), x2)
+
+    # `Add` combines the two terms to produce the final result.
+    output = Add(term1, term2)
+    return output
+}
+
+@proof test_meta_residual_gate_near_one() {
+    # Test case where the gate is forced to be close to 1.
+    # The output should be almost identical to the first input `x1`.
+
+    # Define a gating function that always outputs a large positive value,
+    # which after the Sigmoid function will be very close to 1.
+    fn HighGate(input: f32[N, dim]) -> (gate: f32[N, dim]) {
+        # Create a tensor full of large values to force the sigmoid output to ~1.
+        large_vals = Add(Zeros<like=input>(), 100.0)
+        gate = Sigmoid(large_vals)
+        return gate
+    }
+
+    # Input tensors
+    x1_input: f32[2, 3] = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    x2_input: f32[2, 3] = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+
+    # Execute the fn with the high-gate function.
+    output = MetaResidual(x1_input, x2_input, gating_node=HighGate)
+
+    # Since the gate is ~1, the output should be very close to x1_input.
+    assert_close(output, x1_input, atol=1e-5)
+}
+
+@proof test_meta_residual_gate_near_zero() {
+    # Test case where the gate is forced to be close to 0.
+    # The output should be almost identical to the second input `x2`.
+
+    # Define a gating function that always outputs a large negative value,
+    # which after the Sigmoid function will be very close to 0.
+    fn LowGate(input: f32[N, dim]) -> (gate: f32[N, dim]) {
+        # Create a tensor full of large negative values to force the sigmoid output to ~0.
+        large_neg_vals = Sub(Zeros<like=input>(), 100.0)
+        gate = Sigmoid(large_neg_vals)
+        return gate
+    }
+
+    # Input tensors
+    x1_input: f32[2, 3] = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    x2_input: f32[2, 3] = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+
+    # Execute the fn with the low-gate function.
+    output = MetaResidual(x1_input, x2_input, gating_node=LowGate)
+
+    # Since the gate is ~0, the output should be very close to x2_input.
+    assert_close(output, x2_input, atol=1e-5)
+}

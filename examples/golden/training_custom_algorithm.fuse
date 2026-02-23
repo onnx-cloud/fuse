@@ -1,0 +1,30 @@
+@fuse 0.7
+@opset onnx 19
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+@train weight W: f32[2,2] = [[1.0,0.0],[0.0,1.0]]
+@training { algorithm = my_alg, lr = 1e-3, lr_input = true, step_input = true }
+
+@loss
+fn my_loss(x: f32[2], y: f32[2]) -> f32 {
+    pred = MatMul(x, W)
+    # simple MSE-like loss (sum of squares)
+    e = Sub(pred, y)
+    e2 = Mul(e, e)
+    loss = Add(e2, e2)
+    # return scalar-friendly value
+    loss
+}
+
+@algorithm
+fn my_alg(W: f32[2,2], W_grad: f32[2,2], lr: f32[1], step: i64) -> f32[2,2] {
+    # trivial pass-through update for example purposes
+    W_new = Sub(W, Identity(W_grad))
+    W_new
+}
+
+fn model(x: f32[2], y: f32[2]) -> f32 {
+    p = MatMul(x, W)
+    p
+}

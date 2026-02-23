@@ -1,0 +1,7 @@
+# Fail case: Conv used with an unknown attribute name to trigger an error/hint
+fuse 1.0 opset onnx @18 module conv_bad_attr
+
+fn conv_bad(x: f32[1, 28, 28], w: f32[64, 3, 7, 7]) -> f32[64, 22, 22] {
+  y = Conv(x, w, wrong@=2)
+  y
+}

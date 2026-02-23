@@ -1,0 +1,51 @@
+{
+  "name": "@fuse/jupyterlab-fuse",
+  "version": "0.7.0",
+  "description": "Scaffolded JupyterLab extension for Fuse (autocomplete + error UI)",
+  "license": "Apache-2.0",
+  "author": "Fuse Contributors",
+  "homepage": "https://github.com/onnx/fuse",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/onnx/fuse.git"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --sourcemap --outfile=lib/index.js --format=esm --platform=browser --target=es2019 --external:@jupyterlab/* --external:@lumino/*",
+    "build:prod": "esbuild src/index.ts --bundle --minify --outfile=lib/index.js --format=esm --platform=browser --target=es2019 --external:@jupyterlab/* --external:@lumino/*",
+    "watch": "esbuild src/index.ts --bundle --sourcemap --outfile=lib/index.js --format=esm --platform=browser --target=es2019 --external:@jupyterlab/* --external:@lumino/* --watch",
+    "clean": "rimraf lib dist",
+    "test": "jest",
+    "lint": "echo 'Lint placeholder'"
+  },
+  "keywords": ["jupyterlab", "fuse"],
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "marked": "^5.0.0",
+    "dompurify": "^3.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0",
+    "typescript": "^5.0.0",
+    "rimraf": "^5.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@types/jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "jupyterlab": {
+    "extension": true,
+    "outputDir": "labextensions/@fuse/jupyterlab-fuse",
+    "sharedPackages": {
+      "@jupyterlab/apputils-extension": {
+        "bundled": false,
+        "singleton": true
+      }
+    }
+  }
+}

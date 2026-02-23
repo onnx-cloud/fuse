@@ -1,0 +1,48 @@
+name: Python CI (ONNX exports)
+
+on:
+  push: {}
+  pull_request: {}
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.12]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m uv pip install --upgrade pip
+          uv pip install -r requirements.txt
+          uv pip install .
+
+      - name: Export cookbook examples to ONNX
+        run: |
+          chmod +x scripts/export_cookbook.sh
+          ./scripts/export_cookbook.sh
+
+      - name: Run numeric checks on exported ONNX models
+        run: |
+          python scripts/check_exported_models.py
+
+      - name: Run pytest
+        run: |
+          pytest -q

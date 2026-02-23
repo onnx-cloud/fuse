@@ -1,0 +1,12 @@
+# Example demonstrating constant declaration and usage
+
+@fuse 0.7
+@opset onnx 18
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+const two: i32 = 2
+
+graph test_constant(x: i32[1]) -> i32[1] {
+  double = two * x
+}

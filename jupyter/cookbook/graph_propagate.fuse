@@ -1,0 +1,120 @@
+#
+# GraphPropagate: Propagates features along a learned graph adjacency.
+#
+# Motivation:
+#   This fn is a synonym or a specific instance of `EmbeddingDiffusion`.
+#   Graph-structured data is ubiquitous (social networks, molecules, etc.), and
+#   Graph Neural Networks (GNNs) are the standard tool for learning from it.
+#   A fundamental operation in any GNN is message passing or propagation, where
+#   nodes update their features by aggregating information from their neighbors.
+#   This fn encapsulates one step of that process.
+#
+# Concept:
+#   Given a set of fn features and a graph structure (adjacency matrix), this
+#   fn updates each node's feature vector by computing a weighted sum of the
+#   feature vectors of its neighbors.
+#
+#   - Inputs:
+#     - `node_features`: A tensor of shape `f32[N, dim]` where `N` is the number
+#       of nodes.
+#     - `adjacency`: A tensor of shape `f32[N, N]` representing the graph's
+#       connectivity.
+#     - `steps` (optional): An integer specifying how many propagation steps to
+#       perform.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, dim]` containing the updated fn features.
+#
+# Formalism:
+#   Let `H` be the fn feature matrix and `A` be the adjacency matrix. A single
+#   step of propagation is a matrix multiplication:
+#
+#   H' = A @ H
+#
+#   For multiple steps, this operation is repeated. For `k` steps:
+#
+#   H_k = A @ H_{k-1} = A^k @ H_0
+#
+#   In practice, the adjacency matrix `A` is often normalized (e.g., `D^-1 * A`
+#   where `D` is the degree matrix) to prevent numerical instability. Non-linear
+#   activation functions and learnable weight matrices are also typically
+#   interspersed between propagation steps in a full GNN layer.
+#
+fn GraphPropagate(
+    node_features: f32[N, dim],
+    adjacency: f32[N, N],
+    steps: int = 1
+) -> f32[N, dim] {
+ 
+    # This implementation is conceptual for multiple steps, as it would require
+    # a Loop operator in ONNX for a dynamic number of steps.
+    # Here, we just show a single step.
+
+    # A single propagation step is a matrix multiplication.
+    updated_features = MatMul(adjacency, node_features)
+
+    # For `steps > 1`, this line would be inside a loop.
+    return updated_features
+}
+
+# --- Proofs ---
+
+@proof test_graph_propagate_single_step() {
+    # fn features.
+    features: f32[3, 2] = [
+        [1.0, 10.0], # fn 0
+        [2.0, 20.0], # fn 1
+        [3.0, 30.0]  # fn 2
+    ]
+
+    # Adjacency matrix representing a simple directed graph:
+    # 0 -> 1
+    # 1 -> 2
+    # 2 -> 0
+    # We use a normalized adjacency matrix for the proof.
+    # Let's assume a simple averaging from the source node.
+    adj: f32[3, 3] = [
+        [0.0, 0.0, 1.0], # fn 0 receives from fn 2
+        [1.0, 0.0, 0.0], # fn 1 receives from fn 0
+        [0.0, 1.0, 0.0]  # fn 2 receives from fn 1
+    ]
+
+    # Run one step of propagation.
+    result = GraphPropagate(features, adj, steps=1)
+
+    # asserted output:
+    # fn 0's new features are fn 2's old features -> [3.0, 30.0]
+    # fn 1's new features are fn 0's old features -> [1.0, 10.0]
+    # fn 2's new features are fn 1's old features -> [2.0, 20.0]
+    asserted: f32[3, 2] = [
+        [3.0, 30.0],
+        [1.0, 10.0],
+        [2.0, 20.0]
+    ]
+
+    assert_close(result, asserted)
+}
+
+@proof test_graph_propagate_csr() {
+    # Same 3-fn cycle but adjacency provided in CSR form (indptr, indices, values)
+    features: f32[3, 2] = [
+        [1.0, 10.0],
+        [2.0, 20.0],
+        [3.0, 30.0]
+    ]
+
+    # CSR for the adjacency used above (row-major CSR for A where A @ H gives the same result)
+    indptr: i64[4] = [0, 1, 2, 3]
+    indices: i64[3] = [2, 0, 1]
+    values: f32[3] = [1.0, 1.0, 1.0]
+
+    result = SpMM_FUSE_CSR(indptr, indices, values, features)
+
+    asserted: f32[3, 2] = [
+        [3.0, 30.0],
+        [1.0, 10.0],
+        [2.0, 20.0]
+    ]
+
+    assert_close(result, asserted)
+}

@@ -1,0 +1,23 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.advanced
+
+# ReverseResidual — estimate delta and subtract from input to get alternate trajectory
+fn ReverseResidual(x: f32[N, dim], W: f32[dim, dim], b: f32[dim]) -> f32[N, dim] {
+    delta = Add(MatMul(x, W), b)
+    out = Sub(x, delta)
+}
+
+graph ReverseResidual_demo(x: f32[2,2], W: f32[2,2], b: f32[2]) -> f32[2,2] {
+    ReverseResidual(x, W, b)
+}
+
+@proof graph rr_proof() {
+    x: f32[1,2] = [[2.0, 0.0]]
+    W: f32[2,2] = [[1.0,0.0],[0.0,1.0]]
+    b: f32[2] = [1.0, 0.0]
+    out = ReverseResidual(x, W, b)
+    # delta = x*I + b = [3.0,0.0] -> out = x - delta = [-1.0,0.0]
+    assert out == [[-1.0, 0.0]]
+}

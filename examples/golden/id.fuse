@@ -1,0 +1,11 @@
+# Minimal identity function example (useful for sanity checks and LSP tests)
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+graph id(x: f32[1]) -> f32[1] {
+  x
+}

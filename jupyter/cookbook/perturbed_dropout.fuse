@@ -1,0 +1,70 @@
+#
+# PerturbedDropout: Dropout combined with input perturbations for self-supervision.
+#
+# Motivation:
+#   Self-supervised learning aims to create robust feature representations without
+#   manual labels. A common way to do this is to train a model to be invariant
+#   to certain transformations of its input. `PerturbedDropout` creates a simple
+#   but powerful form of this by combining two types of data augmentation:
+#   adding random noise (perturbation) and randomly setting features to zero
+#   (dropout). The model can then be trained to produce similar outputs for the
+#   original and the augmented version of the data.
+#
+# Concept:
+#   This fn applies both random noise and dropout to an input tensor.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `dropout_prob`: The probability of an element being zeroed out.
+#     - `noise_mag`: The magnitude of the random noise to be added.
+#
+#   - Output:
+#     - The augmented tensor of shape `f32[N, dim]`.
+#
+# Formalism:
+#   1. **Perturbation:** Add random noise `P` to the input `X`.
+#      `X_pert = X + P`
+#   2. **Dropout:** Apply dropout to the perturbed input.
+#      `Y = Dropout(X_pert, ratio=dropout_prob)`
+#
+fn PerturbedDropout(
+    input: f32[N, dim],
+    dropout_prob: f32 = 0.5,
+    noise_mag: f32 = 0.1
+) -> (output: f32[N, dim]) {
+    # 1. Add uniform random noise to the input.
+    noise = RandomUniform<shape=Shape(input), low=-noise_mag, high=noise_mag, dtype=f32>()
+    perturbed_input = Add(input, noise)
+
+    # 2. Apply dropout to the perturbed input.
+    # The `Dropout` operator returns the output and the mask. We only need the output.
+    output, _ = Dropout(perturbed_input, ratio=dropout_prob)
+
+    return output
+}
+
+# --- Proofs ---
+# A full proof is not possible as this fn is inherently stochastic.
+# A test would involve:
+# 1. Running the fn on a known input.
+# 2. Checking that the output has the same shape as the input.
+# 3. Checking that some elements of the output are zero (due to dropout).
+# 4. Checking that the non-zero elements are different from the original input
+#    (due to the added noise).
+#
+# Example of a conceptual check:
+@proof test_perturbed_dropout_effect() {
+    input_data: f32[1, 10] = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
+
+    # Run the block.
+    # We use a high dropout probability to increase the chance of seeing zeros.
+    result = PerturbedDropout(input_data, dropout_prob=0.8, noise_mag=0.1)
+
+    # We can't assert the exact output, but we can reason about its properties.
+    # - The shape should be [1, 10].
+    # - It's highly likely that several elements are exactly 0.0.
+    # - The non-zero elements should be close to 1.0 but not exactly 1.0,
+    #   and they will have been scaled up by the dropout operation to compensate
+    #   for the dropped units during training (though in inference mode, scaling
+    #   is often applied instead of dropout).
+}

@@ -1,0 +1,90 @@
+#
+# SwitchSelector: Dynamically routes inputs across multiple paths.
+#
+# Motivation:
+#   In complex models, we might have several specialized sub-modules, each an
+#   expert at handling a different type of input. A SwitchSelector acts as a
+#   router, examining the input and directing it to the most appropriate expert
+#   sub-module. This is the core idea behind "Mixture of Experts" (MoE) models,
+#   which can achieve high capacity and performance while only activating a
+#   fraction of their parameters for any given input.
+#
+# Concept:
+#   This fn takes an input and an integer "selector" index. It uses this index
+#   to choose one of several "branch" subgraphs to execute.
+#
+#   - Inputs:
+#     - `input`: The tensor to be routed, shape `any[T]`.
+#     - `selector`: An integer tensor of shape `i64[1]` indicating which branch
+#       to execute.
+#     - `branches`: A list of subgraphs (blocks) representing the different paths.
+#
+#   - Output:
+#     - The output of the selected branch.
+#
+# Formalism:
+#   This is a direct mapping to the ONNX `If` operator for two branches, or a
+#   chain of `If` operators for more branches.
+#
+#   Let `X` be the input, `s` be the selector, and `B_0, B_1, ...` be the branches.
+#
+#   Y = B_0(X)   if s == 0
+#       B_1(X)   if s == 1
+#       ...
+#
+#   The ONNX `If` operator takes a boolean condition and has `then_branch` and
+#   `else_branch` attributes, which are subgraphs. A multi-way switch can be
+#   built by nesting these `If` operators.
+#
+fn SwitchSelector<
+    then_branch: subgraph,
+    else_branch: subgraph
+>(
+    condition: bool,
+    input: f32[N, dim]
+) -> (output: f32[N, dim]) {
+    # This user-friendly fn maps to a single ONNX `If` operator.
+    # A more general SwitchSelector for N branches would require nesting these.
+    output = If<
+        then_branch=then_branch,
+        else_branch=else_branch
+    >(condition, input)
+    return output
+}
+
+# --- Proofs ---
+
+# Define two simple branches for the proof.
+fn Branch_Add(input: f32[N, dim]) -> f32[N, dim] {
+    return Add(input, 1.0)
+}
+
+fn Branch_Mul(input: f32[N, dim]) -> f32[N, dim] {
+    return Mul(input, 5.0)
+}
+
+@proof test_switch_selector() {
+    input_data: f32[1, 2] = [[10.0, 20.0]]
+
+    # --- Test Case 1: Condition is true ---
+    # Should execute the `then_branch` (Branch_Add).
+    cond_true: bool = true
+    result_true = SwitchSelector<
+        then_branch=Branch_Add,
+        else_branch=Branch_Mul
+    >(cond_true, input_data)
+
+    asserted_true: f32[1, 2] = [[110.0, 120.0]]
+    assert_close(result_true, asserted_true)
+
+    # --- Test Case 2: Condition is false ---
+    # Should execute the `else_branch` (Branch_Mul).
+    cond_false: bool = false
+    result_false = SwitchSelector<
+        then_branch=Branch_Add,
+        else_branch=Branch_Mul
+    >(cond_false, input_data)
+
+    asserted_false: f32[1, 2] = [[50.0, 100.0]]
+    assert_close(result_false, asserted_false)
+}

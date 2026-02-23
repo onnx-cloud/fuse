@@ -1,0 +1,95 @@
+#
+# HypotheticalEmbedding: Projects embeddings into “what-if” latent space.
+#
+# Motivation:
+#   To perform counterfactual reasoning, a model needs to be able to represent
+#   not just what *is*, but what *could be*. This fn creates a "hypothetical"
+#   or "counterfactual" representation of an input by projecting it into a
+#   different latent space. This new embedding can then be used to explore
+#   alternative scenarios, answer "what-if" questions, or generate creative outputs.
+#
+# Concept:
+#   This fn applies a learned projection (typically a linear transformation
+#   followed by a non-linearity) to the input embeddings to map them into a new
+#   latent space. This space is designed to capture hypothetical variations of
+#   the input.
+#
+#   - Inputs:
+#     - `input`: A tensor of shape `f32[N, dim]`.
+#     - `proj_node` (optional): A subgraph (block) that defines the projection
+#       into the latent space. If not provided, a default linear projection
+#       is used.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, latent_dim]` representing the input in the
+#       hypothetical latent space.
+#
+# Formalism:
+#   The output `Y` is computed by applying the projection function `f` to the
+#   input `X`.
+#
+#   Y = f(X)
+#
+#   A common choice for `f` is a simple affine transformation:
+#
+#   f(X) = X @ W + b
+#
+#   where `W` is a weight matrix and `b` is a bias vector, both learned during
+#   training.
+#
+fn DefaultProjection(input: f32[N, dim], latent_dim: int) -> (f32[N, latent_dim]) {
+    # A standard linear layer to project the input to the desired latent dimension.
+    # The weights and biases are learnable parameters.
+    proj_W = param(shape=[dim, latent_dim], init="glorot_uniform")
+    proj_b = param(shape=[latent_dim], init="zeros")
+
+    projected = MatMul(input, proj_W) + proj_b
+    return projected
+}
+
+fn HypotheticalEmbedding(
+    input: f32[N, dim],
+    latent_dim: int,
+    proj_node: fn = DefaultProjection  # block(f32[N, dim], int) -> f32[N, latent_dim]
+) -> (hypothetical_emb: f32[N, latent_dim]) {
+    # Apply the projection function to map the input to the hypothetical space.
+    hypothetical_emb = proj_node(input, latent_dim)
+    return hypothetical_emb
+}
+
+@proof test_hypothetical_embedding_projection() {
+    # Test the projection with a fixed, simple projection function.
+    input_data: f32[2, 3] = [
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0]
+    ]
+    target_latent_dim = 2
+
+    # Define a simple, deterministic projection function for the test.
+    fn SimpleProj(input: f32[N, dim], latent_dim: int) -> (f32[N, latent_dim]) {
+        # Projects from 3D to 2D by selecting the first two columns and adding the third.
+        # col1' = col1 + col3
+        # col2' = col2 + col3
+        c1 = Slice(input, axes=[1], starts=[0], ends=[1])
+        c2 = Slice(input, axes:=[1], starts:=[1], ends:=[2])
+        c3 = Slice(input, axes:=[1], starts:=[2], ends:=[3])
+        
+        out_c1 = Add(c1, c3)
+        out_c2 = Add(c2, c3)
+        
+        return Concat(out_c1, out_c2, axis=1)
+    }
+
+    # Run the fn with the simple projection.
+    result = HypotheticalEmbedding(input_data, target_latent_dim, proj_node=SimpleProj)
+
+    # asserted output:
+    # Row 1: [1+3, 2+3] = [4, 5]
+    # Row 2: [4+6, 5+6] = [10, 11]
+    asserted: f32[2, 2] = [
+        [4.0, 5.0],
+        [10.0, 11.0]
+    ]
+
+    assert_close(result, asserted)
+}

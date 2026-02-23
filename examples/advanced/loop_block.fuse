@@ -1,0 +1,80 @@
+#
+# LoopBlock: Repeats a subgraph a fixed or learned number of times.
+#
+# Motivation:
+#   This fn is a synonym for `FeedbackLoop`. It provides a general-purpose
+#   mechanism for iteration within a neural network. This is essential for
+#   implementing recurrent structures (like RNNs), iterative refinement algorithms,
+#   or any process that involves repeating a set of operations multiple times.
+#
+# Concept:
+#   This fn executes a "body" subgraph for a specified number of iterations.
+#   It manages "loop-carried state variables," which are tensors whose values are
+#   passed from the end of one iteration to the beginning of the next.
+#
+#   - Inputs:
+#     - `trip_count`: An integer tensor specifying the number of iterations.
+#     - `initial_states`: A list of tensors that are the initial values for the
+#       loop-carried state variables.
+#     - `body`: The subgraph to be executed in each iteration.
+#
+#   - Output:
+#     - The final values of the state variables after all iterations are complete.
+#
+# Formalism:
+#   This is a direct mapping to the ONNX `Loop` operator. The `body` subgraph
+#   has a specific signature: `(iteration_num, condition, state_vars...)`. It
+#   must return the updated condition and the new values for the state variables.
+#
+#   Let `h_0` be an initial state. The body `f` computes the next state:
+#
+#   h_t = f(t, h_{t-1})
+#
+#   The `LoopBlock` computes `h_{trip_count}`.
+#
+fn LoopBlock(
+    body: subgraph,
+    trip_count: i64,
+    initial_states: list[tensor]
+) -> (list[tensor]) {
+    # The implementation is a direct call to the ONNX Loop operator.
+    # The user-friendly `LoopBlock` abstracts away the details of the
+    # condition handling.
+    condition = Constant(value_bool=true)
+
+    # The '*' unpacks the list of initial states into arguments for the Loop op.
+    final_states = Loop<body=body>(trip_count, condition, *initial_states)
+
+    # The Loop op returns the final values of all loop-carried variables.
+    # We slice off the final condition value, which we don't need.
+    return final_states[1:]
+}
+
+# --- Proofs ---
+
+# A simple body function that accumulates the iteration number.
+# State variable: `current_sum`.
+fn AccumulateBody(iter_num: i64, cond: bool, current_sum: f32[1]) -> (bool, f32[1]) {
+    # Add the current iteration number (cast to float) to the sum.
+    new_sum = Add(current_sum, Cast<to=f32>(iter_num))
+
+    # Return the constant `true` condition and the updated sum.
+    return Constant(value_bool=true), new_sum
+}
+
+@proof test_loop_block_summation() {
+    # We want to sum numbers from 0 to 4 (5 iterations).
+    iterations: i64 = 5
+
+    # The initial sum is zero.
+    initial_sum: f32[1] = [0.0]
+
+    # Run the loop.
+    final_sum_tuple = LoopBlock(AccumulateBody, iterations, [initial_sum])
+    final_sum = final_sum_tuple[0]
+
+    # asserted sum: 0 + 1 + 2 + 3 + 4 = 10
+    asserted: f32[1] = [10.0]
+
+    assert_close(final_sum, asserted)
+}

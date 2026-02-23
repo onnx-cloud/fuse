@@ -1,0 +1,1921 @@
+[
+  {
+    "name": "Abs",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Acos",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Acosh",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Adagrad",
+    "since": 1,
+    "domain": "ai.onnx.preview.training",
+    "attributes": [
+      "decay_factor",
+      "epsilon",
+      "norm_coefficient"
+    ]
+  },
+  {
+    "name": "Adam",
+    "since": 1,
+    "domain": "ai.onnx.preview.training",
+    "attributes": [
+      "alpha",
+      "beta",
+      "epsilon",
+      "norm_coefficient",
+      "norm_coefficient_post"
+    ]
+  },
+  {
+    "name": "Add",
+    "since": 14,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "AffineGrid",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "align_corners"
+    ]
+  },
+  {
+    "name": "And",
+    "since": 7,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "ArgMax",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "keepdims",
+      "select_last_index"
+    ]
+  },
+  {
+    "name": "ArgMin",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "keepdims",
+      "select_last_index"
+    ]
+  },
+  {
+    "name": "ArrayFeatureExtractor",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": []
+  },
+  {
+    "name": "Asin",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Asinh",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Atan",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Atanh",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Attention",
+    "since": 24,
+    "domain": "",
+    "attributes": [
+      "is_causal",
+      "kv_num_heads",
+      "q_num_heads",
+      "qk_matmul_output_mode",
+      "scale",
+      "softcap",
+      "softmax_precision"
+    ]
+  },
+  {
+    "name": "AveragePool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "ceil_mode",
+      "count_include_pad",
+      "dilations",
+      "kernel_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "BatchNormalization",
+    "since": 15,
+    "domain": "",
+    "attributes": [
+      "epsilon",
+      "momentum",
+      "training_mode"
+    ]
+  },
+  {
+    "name": "Bernoulli",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "seed"
+    ]
+  },
+  {
+    "name": "Binarizer",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "threshold"
+    ]
+  },
+  {
+    "name": "BitShift",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "direction"
+    ]
+  },
+  {
+    "name": "BitwiseAnd",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "BitwiseNot",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "BitwiseOr",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "BitwiseXor",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "BlackmanWindow",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "output_datatype",
+      "periodic"
+    ]
+  },
+  {
+    "name": "Cast",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "round_mode",
+      "saturate",
+      "to"
+    ]
+  },
+  {
+    "name": "CastLike",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "round_mode",
+      "saturate"
+    ]
+  },
+  {
+    "name": "CastMap",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "cast_to",
+      "map_form",
+      "max_map"
+    ]
+  },
+  {
+    "name": "CategoryMapper",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "cats_int64s",
+      "cats_strings",
+      "default_int64",
+      "default_string"
+    ]
+  },
+  {
+    "name": "Ceil",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Celu",
+    "since": 12,
+    "domain": "",
+    "attributes": [
+      "alpha"
+    ]
+  },
+  {
+    "name": "CenterCropPad",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "axes"
+    ]
+  },
+  {
+    "name": "Clip",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Col2Im",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "dilations",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "Compress",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "Concat",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "ConcatFromSequence",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "new_axis"
+    ]
+  },
+  {
+    "name": "Constant",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "sparse_value",
+      "value",
+      "value_float",
+      "value_floats",
+      "value_int",
+      "value_ints",
+      "value_string",
+      "value_strings"
+    ]
+  },
+  {
+    "name": "ConstantOfShape",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "value"
+    ]
+  },
+  {
+    "name": "Conv",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "dilations",
+      "group",
+      "kernel_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "ConvInteger",
+    "since": 10,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "dilations",
+      "group",
+      "kernel_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "ConvTranspose",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "dilations",
+      "group",
+      "kernel_shape",
+      "output_padding",
+      "output_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "Cos",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Cosh",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "CumSum",
+    "since": 14,
+    "domain": "",
+    "attributes": [
+      "exclusive",
+      "reverse"
+    ]
+  },
+  {
+    "name": "DeformConv",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dilations",
+      "group",
+      "kernel_shape",
+      "offset_group",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "DepthToSpace",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "blocksize",
+      "mode"
+    ]
+  },
+  {
+    "name": "DequantizeLinear",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "block_size",
+      "output_dtype"
+    ]
+  },
+  {
+    "name": "Det",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "DFT",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "inverse",
+      "onesided"
+    ]
+  },
+  {
+    "name": "DictVectorizer",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "int64_vocabulary",
+      "string_vocabulary"
+    ]
+  },
+  {
+    "name": "Div",
+    "since": 14,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Dropout",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "seed"
+    ]
+  },
+  {
+    "name": "DynamicQuantizeLinear",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Einsum",
+    "since": 12,
+    "domain": "",
+    "attributes": [
+      "equation"
+    ]
+  },
+  {
+    "name": "Elu",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "alpha"
+    ]
+  },
+  {
+    "name": "Equal",
+    "since": 19,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Erf",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Exp",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Expand",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "EyeLike",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "k"
+    ]
+  },
+  {
+    "name": "FeatureVectorizer",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "inputdimensions"
+    ]
+  },
+  {
+    "name": "Flatten",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "Floor",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Gather",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "GatherElements",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "GatherND",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "batch_dims"
+    ]
+  },
+  {
+    "name": "Gelu",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "approximate"
+    ]
+  },
+  {
+    "name": "Gemm",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "alpha",
+      "beta",
+      "transA",
+      "transB"
+    ]
+  },
+  {
+    "name": "GlobalAveragePool",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "GlobalLpPool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "p"
+    ]
+  },
+  {
+    "name": "GlobalMaxPool",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Gradient",
+    "since": 1,
+    "domain": "ai.onnx.preview.training",
+    "attributes": [
+      "xs",
+      "y",
+      "zs"
+    ]
+  },
+  {
+    "name": "Greater",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "GreaterOrEqual",
+    "since": 16,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "GridSample",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "align_corners",
+      "mode",
+      "padding_mode"
+    ]
+  },
+  {
+    "name": "GroupNormalization",
+    "since": 21,
+    "domain": "",
+    "attributes": [
+      "epsilon",
+      "num_groups",
+      "stash_type"
+    ]
+  },
+  {
+    "name": "GRU",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "activation_alpha",
+      "activation_beta",
+      "activations",
+      "clip",
+      "direction",
+      "hidden_size",
+      "layout",
+      "linear_before_reset"
+    ]
+  },
+  {
+    "name": "HammingWindow",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "output_datatype",
+      "periodic"
+    ]
+  },
+  {
+    "name": "HannWindow",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "output_datatype",
+      "periodic"
+    ]
+  },
+  {
+    "name": "Hardmax",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "HardSigmoid",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "alpha",
+      "beta"
+    ]
+  },
+  {
+    "name": "HardSwish",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Identity",
+    "since": 25,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "If",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "else_branch",
+      "then_branch"
+    ]
+  },
+  {
+    "name": "ImageDecoder",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "pixel_format"
+    ]
+  },
+  {
+    "name": "Imputer",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "imputed_value_floats",
+      "imputed_value_int64s",
+      "replaced_value_float",
+      "replaced_value_int64"
+    ]
+  },
+  {
+    "name": "InstanceNormalization",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "epsilon"
+    ]
+  },
+  {
+    "name": "IsInf",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "detect_negative",
+      "detect_positive"
+    ]
+  },
+  {
+    "name": "IsNaN",
+    "since": 20,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "LabelEncoder",
+    "since": 4,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "default_float",
+      "default_int64",
+      "default_string",
+      "default_tensor",
+      "keys_floats",
+      "keys_int64s",
+      "keys_strings",
+      "keys_tensor",
+      "values_floats",
+      "values_int64s",
+      "values_strings",
+      "values_tensor"
+    ]
+  },
+  {
+    "name": "LayerNormalization",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "epsilon",
+      "stash_type"
+    ]
+  },
+  {
+    "name": "LeakyRelu",
+    "since": 16,
+    "domain": "",
+    "attributes": [
+      "alpha"
+    ]
+  },
+  {
+    "name": "Less",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "LessOrEqual",
+    "since": 16,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "LinearClassifier",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "classlabels_ints",
+      "classlabels_strings",
+      "coefficients",
+      "intercepts",
+      "multi_class",
+      "post_transform"
+    ]
+  },
+  {
+    "name": "LinearRegressor",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "coefficients",
+      "intercepts",
+      "post_transform",
+      "targets"
+    ]
+  },
+  {
+    "name": "Log",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "LogSoftmax",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "Loop",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "body"
+    ]
+  },
+  {
+    "name": "LpNormalization",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "p"
+    ]
+  },
+  {
+    "name": "LpPool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "ceil_mode",
+      "dilations",
+      "kernel_shape",
+      "p",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "LRN",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "alpha",
+      "beta",
+      "bias",
+      "size"
+    ]
+  },
+  {
+    "name": "LSTM",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "activation_alpha",
+      "activation_beta",
+      "activations",
+      "clip",
+      "direction",
+      "hidden_size",
+      "input_forget",
+      "layout"
+    ]
+  },
+  {
+    "name": "MatMul",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "MatMulInteger",
+    "since": 10,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Max",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "MaxPool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "ceil_mode",
+      "dilations",
+      "kernel_shape",
+      "pads",
+      "storage_order",
+      "strides"
+    ]
+  },
+  {
+    "name": "MaxRoiPool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "pooled_shape",
+      "spatial_scale"
+    ]
+  },
+  {
+    "name": "MaxUnpool",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "kernel_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "Mean",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "MeanVarianceNormalization",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axes"
+    ]
+  },
+  {
+    "name": "MelWeightMatrix",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "output_datatype"
+    ]
+  },
+  {
+    "name": "Min",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Mish",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Mod",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "fmod"
+    ]
+  },
+  {
+    "name": "Momentum",
+    "since": 1,
+    "domain": "ai.onnx.preview.training",
+    "attributes": [
+      "alpha",
+      "beta",
+      "mode",
+      "norm_coefficient"
+    ]
+  },
+  {
+    "name": "Mul",
+    "since": 14,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Multinomial",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "sample_size",
+      "seed"
+    ]
+  },
+  {
+    "name": "Neg",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "NegativeLogLikelihoodLoss",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "ignore_index",
+      "reduction"
+    ]
+  },
+  {
+    "name": "NonMaxSuppression",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "center_point_box"
+    ]
+  },
+  {
+    "name": "NonZero",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Normalizer",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "norm"
+    ]
+  },
+  {
+    "name": "Not",
+    "since": 1,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "OneHot",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "OneHotEncoder",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "cats_int64s",
+      "cats_strings",
+      "zeros"
+    ]
+  },
+  {
+    "name": "Optional",
+    "since": 15,
+    "domain": "",
+    "attributes": [
+      "type"
+    ]
+  },
+  {
+    "name": "OptionalGetElement",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "OptionalHasElement",
+    "since": 18,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Or",
+    "since": 7,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Pad",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "mode"
+    ]
+  },
+  {
+    "name": "Pow",
+    "since": 15,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "PRelu",
+    "since": 16,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "QLinearConv",
+    "since": 10,
+    "domain": "",
+    "attributes": [
+      "auto_pad",
+      "dilations",
+      "group",
+      "kernel_shape",
+      "pads",
+      "strides"
+    ]
+  },
+  {
+    "name": "QLinearMatMul",
+    "since": 21,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "QuantizeLinear",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "block_size",
+      "output_dtype",
+      "precision",
+      "saturate"
+    ]
+  },
+  {
+    "name": "RandomNormal",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "mean",
+      "scale",
+      "seed",
+      "shape"
+    ]
+  },
+  {
+    "name": "RandomNormalLike",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "mean",
+      "scale",
+      "seed"
+    ]
+  },
+  {
+    "name": "RandomUniform",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "high",
+      "low",
+      "seed",
+      "shape"
+    ]
+  },
+  {
+    "name": "RandomUniformLike",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "dtype",
+      "high",
+      "low",
+      "seed"
+    ]
+  },
+  {
+    "name": "Range",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Reciprocal",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "ReduceL1",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceL2",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceLogSum",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceLogSumExp",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceMax",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceMean",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceMin",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceProd",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceSum",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "ReduceSumSquare",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "keepdims",
+      "noop_with_empty_axes"
+    ]
+  },
+  {
+    "name": "RegexFullMatch",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "pattern"
+    ]
+  },
+  {
+    "name": "Relu",
+    "since": 14,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Reshape",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "allowzero"
+    ]
+  },
+  {
+    "name": "Resize",
+    "since": 19,
+    "domain": "",
+    "attributes": [
+      "antialias",
+      "axes",
+      "coordinate_transformation_mode",
+      "cubic_coeff_a",
+      "exclude_outside",
+      "extrapolation_value",
+      "keep_aspect_ratio_policy",
+      "mode",
+      "nearest_mode"
+    ]
+  },
+  {
+    "name": "ReverseSequence",
+    "since": 10,
+    "domain": "",
+    "attributes": [
+      "batch_axis",
+      "time_axis"
+    ]
+  },
+  {
+    "name": "RMSNormalization",
+    "since": 23,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "epsilon",
+      "stash_type"
+    ]
+  },
+  {
+    "name": "RNN",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "activation_alpha",
+      "activation_beta",
+      "activations",
+      "clip",
+      "direction",
+      "hidden_size",
+      "layout"
+    ]
+  },
+  {
+    "name": "RoiAlign",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "coordinate_transformation_mode",
+      "mode",
+      "output_height",
+      "output_width",
+      "sampling_ratio",
+      "spatial_scale"
+    ]
+  },
+  {
+    "name": "RotaryEmbedding",
+    "since": 23,
+    "domain": "",
+    "attributes": [
+      "interleaved",
+      "num_heads",
+      "rotary_embedding_dim"
+    ]
+  },
+  {
+    "name": "Round",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Scaler",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "offset",
+      "scale"
+    ]
+  },
+  {
+    "name": "Scan",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "body",
+      "num_scan_inputs",
+      "scan_input_axes",
+      "scan_input_directions",
+      "scan_output_axes",
+      "scan_output_directions"
+    ]
+  },
+  {
+    "name": "Scatter",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "ScatterElements",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "reduction"
+    ]
+  },
+  {
+    "name": "ScatterND",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "reduction"
+    ]
+  },
+  {
+    "name": "Selu",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "alpha",
+      "gamma"
+    ]
+  },
+  {
+    "name": "SequenceAt",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SequenceConstruct",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SequenceEmpty",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "dtype"
+    ]
+  },
+  {
+    "name": "SequenceErase",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SequenceInsert",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SequenceLength",
+    "since": 11,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SequenceMap",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "body"
+    ]
+  },
+  {
+    "name": "Shape",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "end",
+      "start"
+    ]
+  },
+  {
+    "name": "Shrink",
+    "since": 9,
+    "domain": "",
+    "attributes": [
+      "bias",
+      "lambd"
+    ]
+  },
+  {
+    "name": "Sigmoid",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Sign",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Sin",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Sinh",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Size",
+    "since": 25,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Slice",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Softmax",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "axis"
+    ]
+  },
+  {
+    "name": "SoftmaxCrossEntropyLoss",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "ignore_index",
+      "reduction"
+    ]
+  },
+  {
+    "name": "Softplus",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Softsign",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SpaceToDepth",
+    "since": 13,
+    "domain": "",
+    "attributes": [
+      "blocksize"
+    ]
+  },
+  {
+    "name": "Split",
+    "since": 18,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "num_outputs"
+    ]
+  },
+  {
+    "name": "SplitToSequence",
+    "since": 24,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "keepdims"
+    ]
+  },
+  {
+    "name": "Sqrt",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Squeeze",
+    "since": 25,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "STFT",
+    "since": 17,
+    "domain": "",
+    "attributes": [
+      "onesided"
+    ]
+  },
+  {
+    "name": "StringConcat",
+    "since": 20,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "StringNormalizer",
+    "since": 10,
+    "domain": "",
+    "attributes": [
+      "case_change_action",
+      "is_case_sensitive",
+      "locale",
+      "stopwords"
+    ]
+  },
+  {
+    "name": "StringSplit",
+    "since": 20,
+    "domain": "",
+    "attributes": [
+      "delimiter",
+      "maxsplit"
+    ]
+  },
+  {
+    "name": "Sub",
+    "since": 14,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Sum",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "SVMClassifier",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "classlabels_ints",
+      "classlabels_strings",
+      "coefficients",
+      "kernel_params",
+      "kernel_type",
+      "post_transform",
+      "prob_a",
+      "prob_b",
+      "rho",
+      "support_vectors",
+      "vectors_per_class"
+    ]
+  },
+  {
+    "name": "SVMRegressor",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "coefficients",
+      "kernel_params",
+      "kernel_type",
+      "n_supports",
+      "one_class",
+      "post_transform",
+      "rho",
+      "support_vectors"
+    ]
+  },
+  {
+    "name": "Swish",
+    "since": 24,
+    "domain": "",
+    "attributes": [
+      "alpha"
+    ]
+  },
+  {
+    "name": "Tan",
+    "since": 22,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Tanh",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "TensorScatter",
+    "since": 24,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "mode"
+    ]
+  },
+  {
+    "name": "TfIdfVectorizer",
+    "since": 9,
+    "domain": "",
+    "attributes": [
+      "max_gram_length",
+      "max_skip_count",
+      "min_gram_length",
+      "mode",
+      "ngram_counts",
+      "ngram_indexes",
+      "pool_int64s",
+      "pool_strings",
+      "weights"
+    ]
+  },
+  {
+    "name": "ThresholdedRelu",
+    "since": 22,
+    "domain": "",
+    "attributes": [
+      "alpha"
+    ]
+  },
+  {
+    "name": "Tile",
+    "since": 13,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "TopK",
+    "since": 24,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "largest",
+      "sorted"
+    ]
+  },
+  {
+    "name": "Transpose",
+    "since": 25,
+    "domain": "",
+    "attributes": [
+      "perm"
+    ]
+  },
+  {
+    "name": "TreeEnsemble",
+    "since": 5,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "aggregate_function",
+      "leaf_targetids",
+      "leaf_weights",
+      "membership_values",
+      "n_targets",
+      "nodes_falseleafs",
+      "nodes_falsenodeids",
+      "nodes_featureids",
+      "nodes_hitrates",
+      "nodes_missing_value_tracks_true",
+      "nodes_modes",
+      "nodes_splits",
+      "nodes_trueleafs",
+      "nodes_truenodeids",
+      "post_transform",
+      "tree_roots"
+    ]
+  },
+  {
+    "name": "TreeEnsembleClassifier",
+    "since": 5,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "base_values",
+      "base_values_as_tensor",
+      "class_ids",
+      "class_nodeids",
+      "class_treeids",
+      "class_weights",
+      "class_weights_as_tensor",
+      "classlabels_int64s",
+      "classlabels_strings",
+      "nodes_falsenodeids",
+      "nodes_featureids",
+      "nodes_hitrates",
+      "nodes_hitrates_as_tensor",
+      "nodes_missing_value_tracks_true",
+      "nodes_modes",
+      "nodes_nodeids",
+      "nodes_treeids",
+      "nodes_truenodeids",
+      "nodes_values",
+      "nodes_values_as_tensor",
+      "post_transform"
+    ]
+  },
+  {
+    "name": "TreeEnsembleRegressor",
+    "since": 5,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "aggregate_function",
+      "base_values",
+      "base_values_as_tensor",
+      "n_targets",
+      "nodes_falsenodeids",
+      "nodes_featureids",
+      "nodes_hitrates",
+      "nodes_hitrates_as_tensor",
+      "nodes_missing_value_tracks_true",
+      "nodes_modes",
+      "nodes_nodeids",
+      "nodes_treeids",
+      "nodes_truenodeids",
+      "nodes_values",
+      "nodes_values_as_tensor",
+      "post_transform",
+      "target_ids",
+      "target_nodeids",
+      "target_treeids",
+      "target_weights",
+      "target_weights_as_tensor"
+    ]
+  },
+  {
+    "name": "Trilu",
+    "since": 14,
+    "domain": "",
+    "attributes": [
+      "upper"
+    ]
+  },
+  {
+    "name": "Unique",
+    "since": 11,
+    "domain": "",
+    "attributes": [
+      "axis",
+      "sorted"
+    ]
+  },
+  {
+    "name": "Unsqueeze",
+    "since": 25,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Upsample",
+    "since": 10,
+    "domain": "",
+    "attributes": [
+      "mode"
+    ]
+  },
+  {
+    "name": "Where",
+    "since": 16,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "Xor",
+    "since": 7,
+    "domain": "",
+    "attributes": []
+  },
+  {
+    "name": "ZipMap",
+    "since": 1,
+    "domain": "ai.onnx.ml",
+    "attributes": [
+      "classlabels_int64s",
+      "classlabels_strings"
+    ]
+  }
+]

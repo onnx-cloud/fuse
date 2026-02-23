@@ -1,0 +1,4 @@
+# Warning case: demonstrates a slightly older @fuse minor version that should produce a warning
+@fuse 1.1.0
+
+fn f(x: f32[1]) -> f32[1] { x }

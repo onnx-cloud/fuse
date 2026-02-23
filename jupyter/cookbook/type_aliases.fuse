@@ -1,0 +1,23 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+# Demonstrates type aliases and inline @proof
+
+type Vector3 = f32[3]
+
+const center: Vector3 = [0.0, 0.0, 0.0]
+
+fn mean3(x: Vector3) -> f32[1] {
+  diff = Abs(Sub(x, center))
+  axes: i64[1] = [0]
+  total = ReduceSum(diff, axes, keepdims@=0)
+  shape_one: i64[1] = [1]
+  Reshape(total, shape_one)
+}
+
+@proof graph test_mean3() {
+  out = mean3([1.0, 0.0, 0.0])
+  assert out == [1.0]
+}

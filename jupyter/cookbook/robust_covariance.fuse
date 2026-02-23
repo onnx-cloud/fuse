@@ -1,0 +1,26 @@
+# Cookbook: Robust-covariance-inspired pooled variance example (toy covariance)
+# Ops: ReduceSum, Div, Sub, Mul, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+fn robust_covariance_score(x: f32[2]) -> f32[1] {
+  data: f32[2,2] = [1.0, -1.0, -1.0, 1.0]
+  axes0: i64[1] = [0]
+  shape_one: i64[1] = [1]
+  sum0 = ReduceSum(data, axes0, keepdims@=0)
+  mean = Div(sum0, 2.0)
+  diff = Sub(x, mean)
+  sq = Mul(diff, diff)
+  variance = ReduceSum(sq, axes0, keepdims@=0)
+  pooled = Div(variance, 2.0)
+  Reshape(pooled, shape_one)
+}
+
+@proof graph test_robust_covariance_score() {
+  sample = [2.0, 0.0]
+  out = robust_covariance_score(sample)
+  assert out == [2.0]
+}

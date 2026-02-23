@@ -1,0 +1,16 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+# Trainable parameter
+weight w: f32[64, 3, 7, 7]
+
+# Constant / initializer
+const eps: f32 = 1e-5
+
+fn norm(x: f32[64]) -> f32[64] {
+    y = Add(x, eps)
+    y
+}

@@ -1,0 +1,116 @@
+#
+# CrossModalAttention: Attention across modalities.
+#
+# Motivation:
+#   Many real-world problems involve data from multiple sources or "modalities"
+#   (e.g., text, images, audio). To make sense of this data, a model must be
+#   able to integrate information from different modalities. Cross-modal attention
+#   is a powerful mechanism that allows a model to focus on the most relevant
+#   parts of one modality based on the content of another.
+#
+# Concept:
+#   This fn implements a standard cross-attention mechanism. It uses one
+#   modality (the "query") to attend to another modality (the "key" and "value").
+#   This means it computes a set of attention scores that determine how much
+#   weight to give to each part of the value modality when constructing the output.
+#
+#   - Inputs:
+#     - `query`: A tensor from the first modality, shape `f32[N, query_dim]`.
+#     - `key`: A tensor from the second modality, shape `f32[N, kv_dim]`.
+#     - `value`: A tensor from the second modality, shape `f32[N, kv_dim]`.
+#
+#   - Output:
+#     - A tensor of shape `f32[N, query_dim]` representing the fused information.
+#
+# Formalism:
+#   The attention mechanism is often described by the equation:
+#
+#   Attention(Q, K, V) = softmax( (Q @ K^T) / sqrt(d_k) ) @ V
+#
+#   1. `Q @ K^T`: The dot product between the query and key matrices computes a
+#      similarity score between each query element and each key element.
+#   2. `sqrt(d_k)`: The scores are scaled by the square root of the key dimension
+#      to prevent the softmax function from saturating.
+#   3. `softmax`: The scaled scores are converted into a probability distribution
+#      (attention weights) that sums to 1.
+#   4. `@ V`: The attention weights are used to compute a weighted sum of the
+#      value vectors, producing the final output.
+#
+fn CrossModalAttention(
+    query: f32[N, query_dim],
+    key: f32[N, kv_dim],
+    value: f32[N, kv_dim]
+) -> f32[N, query_dim] {
+    # Project query, key, and value into intermediate representations.
+    # These linear projections are learnable.
+    q_proj = Linear(query, query_dim)
+    k_proj = Linear(key, query_dim)
+    v_proj = Linear(value, query_dim)
+
+    # --- Attention Calculation ---
+    # 1. Compute dot product similarity: Q @ K^T
+    # Transpose k_proj from [N, query_dim] to [query_dim, N]
+    k_T = Transpose(k_proj, perm=[1, 0])
+    attention_scores = MatMul(q_proj, k_T)
+
+    # 2. Scale the scores
+    scale = Sqrt(Constant(query_dim as f32))
+    scaled_scores = Div(attention_scores, scale)
+
+    # 3. Apply softmax to get attention weights
+    attention_weights = Softmax(scaled_scores, axis=-1) # Softmax over keys
+
+    # 4. Compute weighted sum of values
+    output = MatMul(attention_weights, v_proj)
+    return output
+}
+
+# Helper fn for a standard linear layer
+fn Linear(input: f32[N, in_dim], out_dim: int) -> f32[N, out_dim] {
+    W = param(shape=[in_dim, out_dim], init="glorot_uniform")
+    b = param(shape=[out_dim], init="zeros")
+    return MatMul(input, W) + b
+}
+
+
+@proof test_cross_modal_attention_selection() {
+    # Test a scenario where the query should strongly attend to one specific key.
+    # Query is designed to be very similar to the second key.
+    query_vec: f32[1, 2] = [[10.0, 0.0]]
+
+    # Keys: the second key is similar to the query.
+    key_vecs: f32[3, 2] = [
+        [-5.0, 5.0], # Dissimilar
+        [10.0, 0.1], # Similar
+        [0.0, -10.0] # Dissimilar
+    ]
+
+    # Values: associated with each key.
+    value_vecs: f32[3, 2] = [
+        [1.0, 1.0], # Corresponds to key 1
+        [2.0, 2.0], # Corresponds to key 2
+        [3.0, 3.0]  # Corresponds to key 3
+    ]
+
+    # --- Manual Attention Calculation ---
+    # 1. Scores (Q @ K^T)
+    # [10,0] @ [-5,10,0]^T = -50
+    # [10,0] @ [5,0.1,-10]^T = 100
+    # [10,0] @ [5,1,0]^T = 0
+    scores = MatMul(query_vec, Transpose(key_vecs, perm=[1,0])) # -> [[-50, 100, 0]]
+
+    # 2. Scaling (let's assume sqrt(d_k) = 1 for simplicity)
+
+    # 3. Softmax
+    # softmax([-50, 100, 0]) will produce weights very close to [0, 1, 0]
+    # because the score for the second key is much higher than the others.
+    weights = Softmax(scores, axis=-1)
+
+    # 4. Weighted sum of values
+    # result ≈ 0*[1,1] + 1*[2,2] + 0*[3,3] = [2,2]
+    result = MatMul(weights, value_vecs)
+
+    asserted = [[2.0, 2.0]]
+
+    assert_close(result, asserted, atol=1e-3)
+}

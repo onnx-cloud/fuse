@@ -1,0 +1,19 @@
+# Cookbook: Quantize/dequantize pragmas demo
+# Ops: QuantizeLinear, DequantizeLinear, Cast (or Opset-appropriate variants)
+@fuse 0.7
+@opset onnx 19
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+# Demonstrates @quantize / @dequantize pragmas
+
+@quantize("int8", scale=0.1, zero_point=0)
+@dequantize
+fn q_roundtrip(x: f32[3]) -> f32[3] {
+  x
+}
+
+@proof graph test_q() {
+  out = q_roundtrip([1.0, 2.0, 3.0])
+  assert out == [1.0, 2.0, 3.0]
+}

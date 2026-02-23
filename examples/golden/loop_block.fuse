@@ -1,0 +1,23 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta author = "onnx.cloud"
+
+# Sum of first n integers (pass-level, canonical and parser-friendly)
+# Implemented as a `block` so it can be exercised by `@proof` tests.
+
+fn sum_first_n(n: int64) -> int64 {
+  # Use explicit op-calls to avoid a sporadic infix-parser ambiguity seen
+  # in some Earley parse paths (follow-up: harden `infix` transformer).
+  a: int64 = Mul(n, n)
+  b: int64 = Add(a, n)
+  two: int64 = Constant(value_int=2)
+  sum: int64 = Div(b, two)
+  return sum
+}
+
+@proof graph test_sum_5() {
+  output = sum_first_n(5)
+  assert output == 10
+}

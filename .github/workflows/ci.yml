@@ -1,0 +1,59 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      - name: Run Rust tests
+        run: |
+          cargo test --workspace --quiet
+      - name: Build fusec-rs
+        run: |
+          cargo build --manifest-path fusec-rs/Cargo.toml
+
+  # LSP e2e tests were removed; editor integration should be exercised via the
+  # VS Code extension host (open `vscode-extension/` and press F5) or via
+  # Rust-based integration tests when a Rust LSP is available.
+
+  package-extension:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Package VS Code extension
+        working-directory: vscode-extension
+        run: |
+          npx vsce package --y
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuse-vscode-extension
+          path: vscode-extension/*.vsix
+
+  rust-compiler:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      - name: Build and run parser smoke
+        run: |
+          cargo test --manifest-path fusec-rs/Cargo.toml --quiet
+          cargo build --manifest-path fusec-rs/Cargo.toml
+          cargo run --manifest-path fusec-rs/Cargo.toml -- parse examples/simple.fuse -o /tmp/out.json
+          cat /tmp/out.json
+      # Snapshot checks should be managed by developers via `fuse snapshot-compare` or updated snapshots in `fusec-rs/tests/snapshots/`.

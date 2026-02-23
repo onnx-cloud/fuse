@@ -1,0 +1,29 @@
+# Cookbook: kNN-style anomaly score via average distance to centroids
+# Ops: Reshape, Sub, Mul, ReduceSum, Div, Reshape
+
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain jupyter.cookbook
+
+const axes0: i64[1] = [0]
+const axes1: i64[1] = [1]
+
+fn knn_anomaly_score(x: f32[2]) -> f32[1] {
+  centroids: f32[2,2] = [0.0, 0.0, 1.0, 1.0]
+  shape_row: i64[2] = [1, 2]
+  shape_one: i64[1] = [1]
+  x_row = Reshape(x, shape_row)
+  diff = Sub(centroids, x_row)
+  sq = Mul(diff, diff)
+  dist_sq = ReduceSum(sq, axes1, keepdims@=0)
+  total = ReduceSum(dist_sq, axes0, keepdims@=0)
+  avg = Div(total, 2.0)
+  Reshape(avg, shape_one)
+}
+
+@proof graph test_knn_anomaly_score() {
+  sample = [0.0, 0.0]
+  out = knn_anomaly_score(sample)
+  assert out == [1.0]
+}
