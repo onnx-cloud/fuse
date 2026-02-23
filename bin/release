@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# simple release helper for fuse Python package
+set -euo pipefail
+
+# commit current changes
+git add -A .
+git commit -m 'release candidate'
+
+# bump patch version in pyproject.toml
+OLD_VERSION=$(grep -m1 '^version' pyproject.toml | awk -F'"' '{print $2}')
+IFS='.' read -r MAJOR MINOR PATCH <<<"${OLD_VERSION}"
+PATCH=$((PATCH + 1))
+NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+echo "Bumping version: ${OLD_VERSION} -> ${NEW_VERSION}"
+sed -i.bak "s/^version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"${NEW_VERSION}\"/" pyproject.toml
+rm pyproject.toml.bak
+
+# commit the updated version
+git add pyproject.toml
+git commit -m "v${NEW_VERSION}"
+
+# create tag
+git tag "v${NEW_VERSION}"
+
+# push changes and tags
+git push
+git push --tags
+
+# optionally build or upload
+# python -m build
+# twine upload dist/*
+
+

@@ -2,6 +2,8 @@
 
 Fuse is a **cognitive compiler** and **ONNX DSL** that makes building neural networks as simple as writing math equations. Design, train, and deploy models in an interactive notebook environment with AI-powered assistance.
 
+**Jump to:** [Quick Start](#-quick-start-60-seconds) • [Prerequisites](#-prerequisites-check) • [CLI Tools](#command-line-tools) • [Development](#development--scripts) • [Documentation](https://github.com/onnx-cloud/fuse/tree/main/docs)
+
 ---
 
 ## 🚀 Quick Start (60 seconds)

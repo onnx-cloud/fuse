@@ -2,9 +2,6 @@
 
 This short tutorial introduces core machine learning (ML) concepts for programmers and shows how small ideas map to Fuse code. It is aimed at people who know programming well but are new to ML.
 
- **Scope**: this tutorial emphasizes unsupervised learning techniques (anomaly detection, clustering, dimensionality reduction); see the [Cookbook](../COOKBOOK.md) for supervised learning and advanced Fuse features. Experts will find links to deeper technical references.
-
-
 ## 1) The basic ingredients
 
 - **Data**: arrays of numbers (features). Example: a vector of sensor readings.
