@@ -2,9 +2,6 @@
 # simple release helper for fuse Python package
 set -euo pipefail
 
-# commit current changes
-git add -A .
-git commit -m 'release candidate'
 
 # bump patch version in pyproject.toml
 OLD_VERSION=$(grep -m1 '^version' pyproject.toml | awk -F'"' '{print $2}')
@@ -17,7 +14,7 @@ sed -i.bak "s/^version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"${NEW_VERSION
 rm pyproject.toml.bak
 
 # commit the updated version
-git add pyproject.toml
+git add -A .
 git commit -m "v${NEW_VERSION}"
 
 # create tag
