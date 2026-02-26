@@ -22,6 +22,7 @@ class CliContext:
 # Results types
 VerifyResult = Tuple[str, Optional[str]]  # (path, error_message or None)
 from typing import Dict
+from src.io.path_utils import _get_domain_from_meta
 
 LintMessage = Dict[str, object]
 LintResult = List[LintMessage]
@@ -482,6 +483,8 @@ def cmd_onnx(
     embed_external_data=False,
     wasm=False,
     compact=False,
+    # compress/inlines user functions (default: emit FunctionProto)
+    inline=False,
     # explicit training emission opt-in
     training=False,
     # Optional export targets
@@ -516,6 +519,7 @@ def cmd_onnx(
                 output_base=output_base,
                 flat=flat,
                 compact=compact,
+                inline=inline,
                 training=training,
                 embed_external_data=embed_external_data,
                 # Optional extra exports
@@ -988,7 +992,7 @@ def cmd_docs(
 
                                 model_tmp = onnx.load(onnx_paths[0])
                                 model_meta_tmp = {kv.key: kv.value for kv in model_tmp.metadata_props}
-                                domain = model_meta_tmp.get("module") or model_meta_tmp.get("domain")
+                                domain = _get_domain_from_meta(model_meta_tmp)
                             except Exception:
                                 domain = None
                             if domain:
@@ -1288,7 +1292,7 @@ def cmd_docs(
                     # Prepend richer front-matter (fuse/version/domain) replacing existing header
                     # If no explicit domain/module metadata is present, infer a sensible
                     # domain from the source path (e.g., examples/golden -> examples.golden)
-                    inferred_domain = metadata.get("module") or metadata.get("domain")
+                    inferred_domain = _get_domain_from_meta(metadata)
                     if inferred_domain is None:
                         try:
                             parts = src_path.parts
@@ -1335,8 +1339,19 @@ def cmd_docs(
                     if not dry_run:
                         md_file.write_text(md_text, encoding="utf-8")
                     written.append(str(md_file))
-                except Exception:
-                    written.append(str(dest_dir / (src_path.stem + ".md.error.txt")))
+                except Exception as e:
+                    # capture the error both in results and in a file so
+                    # callers (and tests) can inspect what went wrong
+                    err_path = dest_dir / (src_path.stem + ".md.error.txt")
+                    try:
+                        if not dry_run:
+                            err_path.write_text(str(e) + "\n", encoding="utf-8")
+                    except Exception:
+                        pass
+                    written.append(str(err_path))
+                    # also log to stderr for additional visibility
+                    import sys, traceback
+                    traceback.print_exc(file=sys.stderr)
 
             # No per-file README.md — artifacts written directly into dest_dir (flat layout)
 

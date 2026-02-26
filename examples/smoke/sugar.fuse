@@ -1,0 +1,9 @@
+@fuse 0.7
+@opset onnx 18
+@domain examples.smoke
+
+# trivial example exercising basic expression syntax
+
+graph sugar(x: f32[1]) -> f32[1] {
+  out = x + x
+}

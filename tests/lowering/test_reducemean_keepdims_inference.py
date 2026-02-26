@@ -7,23 +7,25 @@ import onnx
 
 def test_reducemean_keepdims_allows_matmul(tmp_path):
     p = tmp_path / "keepdims_test.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     p.write_text(
-        """@fuse 0.7
+        f"""@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain test.keepdims
 @train weight W_img: f32[3,32]
 
 type Img = f32[1,3,128,128]
 
-model m(x: Img) -> f32[1,32] {
+model m(x: Img) -> f32[1,32] {{
   # reduce spatial dims without keeping them
   pooled = ReduceMean(x, axes=[2,3], keepdims@=0)
   # ensure cast to f32 (mirrors 'as f32' shorthand)
   pooled2 = Cast<to=f32>(pooled)
   out = MatMul(pooled2, W_img)
   out
-}
+}}
 """
     )
     res = commands.cmd_onnx([str(p)], out_dir=str(tmp_path / "onnx"))
@@ -42,20 +44,22 @@ model m(x: Img) -> f32[1,32] {
 
 def test_reducemean_with_cast_shorthand(tmp_path):
     p = tmp_path / "keepdims_as.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     p.write_text(
-        """@fuse 0.7
+        f"""@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain test.keepdims
 @train weight W_img: f32[3,32]
 
 type Img = f32[1,3,128,128]
 
-model m(x: Img) -> f32[1,32] {
+model m(x: Img) -> f32[1,32] {{
   pooled = ReduceMean(x, axes=[2,3], keepdims@=0)
   out = MatMul(pooled, W_img)
   out
-}
+}}
 """
     )
     res = commands.cmd_onnx([str(p)], out_dir=str(tmp_path / "onnx2"))

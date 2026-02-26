@@ -1,6 +1,9 @@
 import subprocess
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def test_golden_export_tolerant_to_ttl_invalid_meta(tmp_path: Path):
@@ -29,7 +32,9 @@ def test_golden_export_tolerant_to_ttl_invalid_meta(tmp_path: Path):
         venv_py = repo_root / ".venv" / "bin" / "python"
         if venv_py.exists():
             python_bin = venv_py
+    logger.debug("running export: %s", [str(python_bin), str(script), "--process-file", str(p), "--out-dir", str(out_dir)])
     proc = subprocess.run([str(python_bin), str(script), "--process-file", str(p), "--out-dir", str(out_dir)], capture_output=True, text=True)
+    logger.debug("export returned %d", proc.returncode)
 
     # Script should exit successfully (TTL rejection should be non-fatal)
     assert proc.returncode == 0

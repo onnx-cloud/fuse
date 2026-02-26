@@ -1,10 +1,14 @@
 import subprocess
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def test_help_includes_meta_aliases():
     # Run the script as a module to avoid importing optional deps at test-collection
     cmd = [sys.executable, "-m", "scripts.golden_onnx_export", "--help"]
+    logger.debug("running %s", cmd)
     proc = subprocess.run(cmd, capture_output=True, text=True)
     # argparse prints help to stdout and exits with code 0
     assert proc.returncode == 0

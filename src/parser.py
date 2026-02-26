@@ -130,7 +130,7 @@ WEIGHTS: "weights"
 // Inline attribute assignment token: e.g., gamma@=LN1_gamma
 ATTR_ASSIGN: /[A-Za-z_][A-Za-z0-9_]*@=[A-Za-z_][A-Za-z0-9_]*/
 meta_opset: "@opset" IDENT NUMBER
-meta_module: "@domain" IDENT | "@domain" IDENT
+meta_module: ("@domain" | "@module") IDENT
 meta_kv: "@meta" IDENT "=" value_expr
 meta_id: "@id" STRING
 
@@ -200,7 +200,7 @@ imported_tensors: "@import" "(" STRING ("," kwarg)* ")"
 // Extend value expressions to allow external load forms
 value_expr: literal | list_lit | imported_tensors
 
-node_decl: ("fn" | "node" | "block")? IDENT generic? "(" param_list? ")" ret_annot? node
+node_decl: ("fn" | "node" )? IDENT generic? "(" param_list? ")" ret_annot? node
 test_node_decl: "@proof" node_decl
 golden_decl: "@golden" node_decl
 model_decl: ("model" | "graph") IDENT "(" param_list? ")" ret_annot? node
@@ -225,17 +225,17 @@ meta_ann: "@meta" IDENT "=" value_expr
 
 node: "{" (stmt | expr | COMMENT | SEMICOLON)* "}"
 stmt: let_stmt | assign_stmt | assert_stmt | doc_stmt | annot_stmt | return_stmt | COMMENT
-let_stmt: (IDENT | ident_tuple) "=" expr
+let_stmt: (IDENT | ident_tuple) "=" expr SEMICOLON?
 
 // tuple-like LHS without surrounding brackets: `a, b = ...`
 ident_tuple: IDENT ("," IDENT)+
-assign_stmt: IDENT ":" type_expr "=" expr
+assign_stmt: IDENT ":" type_expr "=" expr SEMICOLON?
 // Support both `assert <expr>` and `assert <expr> == <expr>`
-assert_stmt: ("assert" | "expect") expr ["==" expr]
-doc_stmt: "@note" STRING
-annot_stmt: "@" IDENT "(" value_expr ")"
+assert_stmt: ("assert" | "expect") expr ["==" expr] SEMICOLON?
+doc_stmt: "@note" STRING SEMICOLON?
+annot_stmt: "@" IDENT "(" value_expr ")" SEMICOLON?
 // Allow `return a, b` (tuple return) — accepted by tests/examples.
-return_stmt: "return" expr ("," expr)*
+return_stmt: "return" expr ("," expr)* SEMICOLON?
 
 // -----
 // Expressions
@@ -243,7 +243,7 @@ return_stmt: "return" expr ("," expr)*
 ?expr: as_expr | infix
 as_expr: infix "as" (type_expr | scalar)
 infix: primary (operator primary)*
-primary: atom subscript*
+primary: atom subscript* SEMICOLON?
 // Support inline arrow/lambda expressions used in terse examples: `(a, b) => expr`
 // Allow parenthesized tuples/expressions (e.g., `(true, Add(...))`) and inline lambdas
 atom: call | cast_expr | ident_list | list_lit | literal | IDENT | paren_expr | lambda_expr | map_lit | loop_expr | if_expr | scan_expr
@@ -272,7 +272,7 @@ operator: OP
 // Control flow expressions: loop, if, scan
 loop_expr: "loop" "(" loop_args ")" "{" loop_body_stmts "return" loop_body_return "}"
 loop_args: expr ("," expr)*
-loop_body_stmts: (stmt | COMMENT)*
+loop_body_stmts: (stmt SEMICOLON? | COMMENT | SEMICOLON)*
 loop_body_return: expr ("," expr)*
 
 if_expr: "static" "if" expr node ["else" node]
@@ -280,7 +280,7 @@ if_expr: "static" "if" expr node ["else" node]
 
 scan_expr: "scan" "(" scan_args ")" "{" scan_body_stmts "return" scan_body_return "}"
 scan_args: expr ("," expr)*
-scan_body_stmts: (stmt | COMMENT)*
+scan_body_stmts: (stmt SEMICOLON? | COMMENT | SEMICOLON)*
 scan_body_return: expr ("," expr)*
 
 // -----
@@ -340,6 +340,7 @@ INT: /\d+/
 
 COMMENT: /#[^\n]*/
 
+%import common.NEWLINE
 %ignore " "
 %ignore "\t"
 %ignore /(\r?\n)+/
@@ -382,7 +383,16 @@ class FuseTransformer(Transformer):
         }
 
     def meta_module(self, name):
-        return {"type": "meta", "name": "module", "value": str(name)}
+        # metadata alias: both @domain and @module produce a canonical
+        # "domain" key.  Historically we used "module"; continue accepting
+        # the old form in the parser for backwards compatibility but record
+        # the new key so downstream logic can treat domains uniformly.
+        # emit a deprecation warning at parse time so callers using the parser
+        # can be made aware of the change (tests rely on this behavior).
+        import warnings
+
+        warnings.warn("'@module' metadata is deprecated; use '@domain' instead", DeprecationWarning)
+        return {"type": "meta", "name": "domain", "value": str(name)}
 
     def meta_id(self, value):
         # sugar form: @id "examples:..."
@@ -558,6 +568,9 @@ class FuseTransformer(Transformer):
         # emitted (e.g., 'Cast<f32>(x)' may produce separate 'Cast' IDENT and
         # a call node). If we detect a leading IDENT followed by a call node
         # with the same name, fold them into a single returned expression.
+        # Strip any trailing semicolon tokens from the argument list.
+        if rest and isinstance(rest[-1], str) and rest[-1] == ";":
+            rest = rest[:-1]
         if (
             rest
             and isinstance(first, str)
@@ -1220,20 +1233,25 @@ class FuseTransformer(Transformer):
     def ident_tuple(self, first, *rest):
         return [str(first)] + [str(r) for r in rest]
 
-    def let_stmt(self, name, expr):
+    def let_stmt(self, name, expr, *args):
         # If this is a tuple-destructuring LHS (e.g. `_, x = foo()`), preserve
         # the tuple-form in the AST rather than expanding it; lowering will
         # expand into per-target assignments. Tests expect the tuple-form to
-        # be present in the parsed AST.
+        # be present in the parsed AST. Trailing semicolons appear in ``args``
+        # and are ignored.
         if isinstance(name, list):
             return {"let": [str(n) for n in name], "expr": expr}
         return {"let": str(name), "expr": expr}
 
-    def assign_stmt(self, name, typ, expr):
+    def assign_stmt(self, name, typ, expr, *args):
+        # Trailing semicolons in assignment statements are ignored.
         return {"assign": str(name), "type": typ, "expr": expr}
 
     def assert_stmt(self, *args):
         # Handle both `assert expr` and `assert left == right` forms.
+        # A trailing semicolon token may be present in ``args``; ignore it.
+        if args and isinstance(args[-1], str) and args[-1] == ";":
+            args = args[:-1]
         if len(args) == 1:
             return {"assert": args[0]}
         if len(args) == 2:
@@ -1241,10 +1259,10 @@ class FuseTransformer(Transformer):
             return {"assert": {"left": left, "right": right}}
         raise ValueError("assert_stmt: unexpected arity")
 
-    def doc_stmt(self, text):
+    def doc_stmt(self, text, *args):
         return {"note": text}
 
-    def annot_stmt(self, name, value):
+    def annot_stmt(self, name, value, *args):
         return {"annot": str(name), "value": value}
 
     def call(self, name, *rest):
@@ -1507,10 +1525,15 @@ class FuseTransformer(Transformer):
         return [first] + list(rest)
 
     def loop_body_stmts(self, *stmts):
-        return list(stmts) if stmts else []
+        # Remove tokens such as NEWLINE or SEMICOLON that are used purely as
+        # separators; only keep AST nodes.
+        return [s for s in stmts if not isinstance(s, Token)] if stmts else []
 
     def loop_body_return(self, first, *rest):
-        return [first] + list(rest)
+        # Drop any separator tokens (NEWLINE, SEMICOLON) that may have been
+        # included in the return list.
+        items = [first] + list(rest)
+        return [i for i in items if not isinstance(i, Token)]
 
     def if_expr(self, *parts):
         return {"if": parts}
@@ -1531,10 +1554,12 @@ class FuseTransformer(Transformer):
         return [first] + list(rest)
 
     def scan_body_stmts(self, *stmts):
-        return list(stmts) if stmts else []
+        # Mirror loop_body_stmts behaviour: drop tokens from the returned list.
+        return [s for s in stmts if not isinstance(s, Token)] if stmts else []
 
     def scan_body_return(self, first, *rest):
-        return [first] + list(rest)
+        items = [first] + list(rest)
+        return [i for i in items if not isinstance(i, Token)]
 
     def array_scalar(self, scalar, dims):
         # allow shorthand like `f32[1]` to be parsed as a tensor type

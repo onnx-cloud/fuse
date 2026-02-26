@@ -1,6 +1,7 @@
 import os
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -9,7 +10,9 @@ def test_golden_export_handles_interrupt():
     """Spawn the child-mode exporter and send SIGINT; it should exit cleanly
     with a short 'user terminated' message and non-zero exit code.
     """
-    cmd = [os.environ.get("PYTHON", "python"), "-m", "scripts.golden_onnx_export", "--process-file", "examples/golden/strange.fuse", "--out-dir", "tmp/onnx"]
+    # use the same Python interpreter that's running the test to ensure
+    # required deps (like lark) are present
+    cmd = [sys.executable, "-m", "scripts.golden_onnx_export", "--process-file", "examples/golden/strange.fuse", "--out-dir", "tmp/onnx"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         # Give the child a moment to start

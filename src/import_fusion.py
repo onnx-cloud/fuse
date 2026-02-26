@@ -7,6 +7,18 @@ stable prefixing. Kept separate from lowering so it can evolve independently.
 from __future__ import annotations
 
 from pathlib import Path
+import warnings
+
+
+def _get_domain_from_meta(meta: dict) -> str | None:
+    """Return domain string accepting deprecated 'module' key."""
+    if not isinstance(meta, dict):
+        return None
+    dom = meta.get("domain")
+    if dom is None and "module" in meta:
+        warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
+        dom = meta.get("module")
+    return dom
 from typing import Any, Dict, List, Optional
 
 import onnx
@@ -189,12 +201,8 @@ class ImportManager:
 
         # Compose prefix with scope if present on context. If a function/file scope
         # is not set on the context (imports at module top-level), fall back to
-        # using the declared module name so imports are still domaind.
-        module_prefix = (
-            ctx.model_metadata.get("module")
-            if ctx.model_metadata.get("module")
-            else None
-        )
+        # using the declared domain name so imports are still domaind.
+        module_prefix = _get_domain_from_meta(ctx.model_metadata)
         prefix = (
             f"{ctx.scope_prefix}_"
             if getattr(ctx, "scope_prefix", None)
@@ -277,6 +285,41 @@ class ImportManager:
                             _prefix_graph_names(g)
 
         _prefix_graph_names(imported_model.graph)
+
+        # Prefix and import any FunctionProto definitions from the imported model
+        try:
+            for f in list(imported_model.functions):
+                newf = onnx.FunctionProto()
+                newf.CopyFrom(f)
+                # prefix the function name itself to avoid collisions
+                if newf.name:
+                    newf.name = f"{aliased}_{newf.name}"
+                # prefix inputs/outputs/value_info
+                for i in range(len(newf.input)):
+                    newf.input[i] = f"{aliased}_{newf.input[i]}"
+                for i in range(len(newf.output)):
+                    newf.output[i] = f"{aliased}_{newf.output[i]}"
+                for vi in newf.value_info:
+                    if vi.name:
+                        vi.name = f"{aliased}_{vi.name}"
+                # prefix nodes inside function body
+                for node in newf.node:
+                    node.name = (
+                        f"{aliased}_{node.name}"
+                        if node.name
+                        else ctx._next_node_name(aliased)
+                    )
+                    node.input[:] = [f"{aliased}_{i}" for i in node.input]
+                    node.output[:] = [f"{aliased}_{o}" for o in node.output]
+                    for attr in node.attribute:
+                        if getattr(attr, "g", None):
+                            _prefix_graph_names(attr.g)
+                        if getattr(attr, "graphs", None):
+                            for g in attr.graphs:
+                                _prefix_graph_names(g)
+                ctx.functions.append(newf)
+        except Exception:
+            pass
 
         # Process initializers: rename and preserve external data references
         external_files = ctx.model_metadata.get("external_files", [])

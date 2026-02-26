@@ -205,6 +205,7 @@ def main(argv=None) -> int:
     )
     p.add_argument("--wasm", action="store_true", dest="wasm")
     p.add_argument("--compact", action="store_true", dest="compact", help="Emit compact model (suppress initial identity node)")
+    p.add_argument("--inline", action="store_true", dest="inline", help="Inline/compress user-defined functions into the graph (default: emit FunctionProto definitions)")
     p.add_argument("--training", action="store_true", dest="training", help="Emit training metadata (ModelProto.training_info) when present in source (opt-in)")
     # Optional export targets
     p.add_argument("--tf", action="store_true", dest="tf", help="Export TensorFlow SavedModel alongside ONNX (requires onnx-tf/tensorflow)")

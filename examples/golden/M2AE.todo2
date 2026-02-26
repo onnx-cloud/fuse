@@ -1,0 +1,253 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.2.0
+@domain examples.golden.m2ae
+
+@meta doc = "M²AE: A Multi-Modal Autoencoder for Abstract Reasoning"
+
+# -----------------
+# Architecture Constants
+# -----------------
+const D_inA: i64 = 768      # Vision/structural modality dimension
+const D_inB: i64 = 256      # Language/symbolic modality dimension  
+const D_latent: i64 = 512   # bottleneck: forces abstraction
+
+# -----------------
+# Core Types
+# -----------------
+type InputA = f32[B, D_inA]      # First modality (e.g., vision)
+type InputB = f32[B, D_inB]      # Second modality (e.g., language)
+type Bottleneck = f32[B, D_latent]  # Unified reasoning space
+
+# -----------------
+# Core Reasoning Weights (M² = Modality × Modality interaction)
+# -----------------
+@train weight W_A: f32[D_inA, D_latent]    # Encode modality A into reasoning space
+@train weight b_A: f32[D_latent]
+
+@train weight W_B: f32[D_inB, D_latent]    # Encode modality B into reasoning space  
+@train weight b_B: f32[D_latent]
+
+@train weight W_fuse: f32[D_latent, D_latent]  # M²: Learn interaction dynamics between modalities
+@train weight b_fuse: f32[D_latent]
+
+@train weight W_reason: f32[D_latent, D_latent]  # Internal reasoning transform
+@train weight b_reason: f32[D_latent]
+
+@train weight W_outA: f32[D_latent, D_inA]     # Decode back to modality A
+@train weight b_outA: f32[D_inA]
+
+@train weight W_outB: f32[D_latent, D_inB]     # Decode back to modality B
+@train weight b_outB: f32[D_inB]
+
+# -----------------
+# Reasoning Extensions
+# -----------------
+
+# 1. Self-Model: The system's understanding of its own reasoning patterns
+@train weight W_self: f32[D_latent, D_latent]
+# (Transient local self-model will be used inside graphs for simplicity)
+
+# 2. Attention Gate: Dynamically weights modalities based on context
+@train weight W_gateA: f32[D_latent, 1]  # Learns when to trust A vs B for reasoning (part A)
+@train weight W_gateB: f32[D_latent, 1]  # Learns when to trust A vs B for reasoning (part B)
+
+# 3. Working Memory: Maintains reasoning state across processing steps
+# (Transient local working memory used inside graphs; persistent state
+# is not modeled in this golden example.)
+
+# 4. Metacognition: Assesses confidence in reasoning outputs
+@train weight W_meta: f32[D_latent, 1]
+
+# -----------------
+# Core Reasoning Pipeline
+# -----------------
+
+graph encode_to_reasoning_space(xA: f32[B, D_inA], xB: f32[B, D_inB]) -> (f32[B,D_latent], f32[B,D_latent]) {
+    @note "Project both modalities into a shared reasoning space; this is where different ways of knowing become comparable."
+    rA = Add(MatMul(xA, W_A), b_A)  # Vision → reasoning vectors
+    rB = Add(MatMul(xB, W_B), b_B)  # Language → reasoning vectors
+    return rA, rB
+}
+
+graph reason_across_modalities(rA: f32[B,D_latent], rB: f32[B,D_latent]) -> Bottleneck {
+    @note "M² interaction: modalities don't just add, they transform each other; this is where cross-modal reasoning emerges."
+    # Attention determines reasoning focus
+    gate_logits = Concat(MatMul(rA, W_gateA), MatMul(rB, W_gateB), axis=1)
+    attention = Softmax(gate_logits, axis=1)
+    
+    # Attended reasoning vectors (broadcast attention scalar across latent dim)
+    attendedA = rA * attention[:, 0:1]
+    attendedB = rB * attention[:, 1:2]
+    
+    # Fuse with learned interaction
+    transformed = Add(MatMul(attendedA, W_fuse), b_fuse)
+    fused = transformed + attendedB
+    
+    # Apply internal reasoning transform
+    reasoned = Add(MatMul(fused, W_reason), b_reason)
+    
+    # Update (transient) self-model with this reasoning pattern
+    # Simplified interaction: use transient self-model as a placeholder for outer-product interaction
+    interaction = W_self
+    # Update to transient local self-patterns (omitted actual identity init for ONNX compatibility)
+    _ = interaction  # keep computation to avoid unused warnings
+
+    return reasoned
+}
+
+graph decode_from_reasoning(z: f32[B, D_latent]) -> (f32[B, D_inA], f32[B, D_inB], f32[B,1]) {
+    @note "Translate unified reasoning back to modality-specific outputs; the bottleneck forces the reasoning to be expressive enough for both domains."
+    # Apply self-model influence: reasoning about reasoning
+    self_influenced = MatMul(z, W_self)
+    enhanced_z = 0.7 * z + 0.3 * self_influenced
+    
+    # (Working memory omitted in this simplified golden example)
+    
+    # Decode with internal reasoning
+    decoded = Add(MatMul(enhanced_z, W_reason), b_reason)
+    
+    # Produce modality-specific reconstructions
+    outA = Add(MatMul(decoded, W_outA), b_outA)
+    outB = Add(MatMul(decoded, W_outB), b_outB)
+    
+    # Metacognitive assessment: how confident in this reasoning?
+    confidence = Sigmoid(MatMul(z, W_meta))
+    
+    return outA, outB, confidence
+}
+
+# -----------------
+# Complete M²AE Reasoning Graph
+# -----------------
+
+graph reason(xA: f32[B, D_inA], xB: f32[B, D_inB]) -> (f32[B, D_inA], f32[B, D_inB], f32[B,1]) {
+    @note "End-to-end multi-modal reasoning: encode both modalities, reason in bottleneck, decode, and assess confidence."
+    rA, rB = encode_to_reasoning_space(xA, xB)
+    reasoned = reason_across_modalities(rA, rB)
+    outA, outB, confidence = decode_from_reasoning(reasoned)
+    return outA, outB, confidence
+}
+
+# -----------------
+# Advanced Reasoning Modes
+# -----------------
+
+graph reason_with_working_memory(xA: f32[B, D_inA], xB: f32[B, D_inB]) -> (f32[B, D_latent], f32[B,1]) {
+    @note "Reasoning incorporating recent history (working memory)."
+    # Current reasoning
+    rA, rB = encode_to_reasoning_space(xA, xB)
+    current_z = reason_across_modalities(rA, rB)
+    
+    # Working memory omitted; use current reasoning state directly
+    contextualized_z = current_z
+
+    # Value of this reasoning state (for learning preferences)
+    value = MatMul(contextualized_z, Transpose(W_meta, perm=[1,0]))
+
+    return contextualized_z, value
+}
+
+graph cross_modal_inference(xA: f32[B, D_inA]) -> f32[B, D_inB] {
+    @note "Infer modality B from A (A→B cross-modal inference)."
+    # Infer language from vision
+    rA, _ = encode_to_reasoning_space(xA, ZerosLike(Reshape(xA, [B, D_inB])))
+
+    # Reason about what language would accompany this vision
+    reasoned = Add(MatMul(rA, W_fuse), b_fuse)
+
+    # Decode to language
+    decoded = Add(MatMul(reasoned, W_reason), b_reason)
+    inferred = Add(MatMul(decoded, W_outB), b_outB)
+
+    return inferred
+}
+
+# -----------------
+# Training with Reasoning Objectives
+# -----------------
+
+@training { optimizer = Adam, lr = 1e-3 }
+graph train_reasoning(xA: f32[B, D_inA], xB: f32[B, D_inB]) -> (f32, f32, f32) {
+    @note "Train M²AE with reconstruction, consistency, and calibration objectives."
+    # Forward pass through full reasoning pipeline
+    reconA, reconB, confidence = reason(xA, xB)
+    
+    # 1. Reconstruction loss (must maintain modality-specific details)
+    recon_loss = ReduceMean((xA - reconA) * (xA - reconA)) + 
+                 ReduceMean((xB - reconB) * (xB - reconB))
+    
+    # 2. Reasoning consistency loss (similar inputs should have similar reasoning)
+    # Create slightly perturbed version
+    xA_perturbed = xA + 0.01 * RandomUniformLike(xA)
+    xB_perturbed = xB + 0.01 * RandomUniformLike(xB)
+    
+    rA1, rB1 = encode_to_reasoning_space(xA, xB)
+    rA2, rB2 = encode_to_reasoning_space(xA_perturbed, xB_perturbed)
+    
+    reasoning_consistency = ReduceMean((rA1 - rA2) * (rA1 - rA2)) + 
+                            ReduceMean((rB1 - rB2) * (rB1 - rB2))
+    
+    # 3. Metacognitive calibration loss (confidence should match accuracy)
+    actual_error = 0.5 * (ReduceMean(Abs(xA - reconA)) + ReduceMean(Abs(xB - reconB)))
+    calibration_loss = (confidence - (1.0 - actual_error)) * 
+                      (confidence - (1.0 - actual_error))
+    
+    # Total loss: encourages good, consistent, well-calibrated reasoning
+    total_loss = recon_loss + 0.1 * reasoning_consistency + 0.05 * calibration_loss
+    
+    return total_loss, recon_loss, calibration_loss
+}
+
+# -----------------
+# Reasoning Quality Metrics
+# -----------------
+
+graph assess_reasoning_quality() -> f32[5] {
+    @note "Assess reasoning quality: integration, consistency, expressivity, calibration, novelty."
+    # 1. Integration measure: norm of self-model (W_self)
+    integration = ReduceMean(Abs(W_self))
+    
+    # 2. Consistency: working memory not modeled in this simplified example
+    consistency = 0.0
+    
+    # 3. Expressivity: rank of reasoning patterns
+    # (Simplified: measure of how "full" the matrix is)
+    expressivity = ReduceMean(W_self * W_self)
+    
+    # 4. Calibration would require tracking over multiple runs
+    # 5. Novelty would require comparing to training distribution
+    
+    return [integration, consistency, expressivity, 0.0, 0.0]
+}
+
+# -----------------
+# Test Node
+# -----------------
+@proof graph test_m2ae_reasoning() {
+    B = 4
+    xA: InputA = RandomUniform()
+    xB: InputB = RandomUniform()
+    
+    # Test basic reasoning
+    reconA, reconB, confidence = m2ae_reason(xA, xB)
+    assert Shape(reconA) == [B, D_inA]
+    assert Shape(reconB) == [B, D_inB]
+    assert Shape(confidence) == [B, 1]
+    
+    # Test cross-modal inference
+    inferredB = cross_modal_inference(xA, "A→B")
+    inferredA = cross_modal_inference(xB, "B→A")
+    
+    assert Shape(inferredB) == [B, D_inB]
+    assert Shape(inferredA) == [B, D_inA]
+    
+    # Test reasoning with memory
+    z, value = reason_with_working_memory(xA, xB)
+    assert Shape(z) == [B, D_latent]
+    assert Shape(value) == [B, 1]
+    
+    # Test quality assessment
+    quality = assess_reasoning_quality()
+    assert Shape(quality) == [5]
+}

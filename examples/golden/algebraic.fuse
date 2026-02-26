@@ -1,0 +1,9 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+@meta title = "Algebraic"
+@meta description = "Simple algebraic example"
+
+# a minimal graph
+node algebraic(a: f32) -> f32 { a }

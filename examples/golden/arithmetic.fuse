@@ -38,7 +38,7 @@ fn algebra_smoke(
   r2 = Add(v_mul, mix2)     # explicit Add merge
 
   # --- final mul via sugar on merged path ---
-  out4 = r2 @ ONE1          # no-op mul but exercises @ on vector
+  out4 = r2 @ ONE1          # no-op MatMul but exercises @ on vector
   out1 = r1                 # scalar lane already fully exercised
 
   return (out1, out4)

@@ -1,0 +1,11 @@
+@fuse 0.7
+@opset onnx 18
+@domain examples.smoke
+
+param p: f32[1] = 3.0
+const c: f32[1] = 2.0
+
+graph params_consts(x: f32[1]) -> f32[1] {
+  out = Add(x, p)
+  out2 = Mul(out, c)
+}

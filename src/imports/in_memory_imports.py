@@ -1,7 +1,18 @@
 from typing import Dict, Optional
 
 import onnx
+import warnings
 from src.graph_context import GraphContext
+
+
+def _get_domain_from_meta(meta: dict) -> str | None:
+    if not isinstance(meta, dict):
+        return None
+    dom = meta.get("domain")
+    if dom is None and "module" in meta:
+        warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
+        dom = meta.get("module")
+    return dom
 
 
 class InMemoryImportManager:
@@ -35,12 +46,8 @@ class InMemoryImportManager:
         # Note: we do not perform variant selection or caching; callers
         # should prepare the import_decl accordingly in tests.
 
-        # Compose prefix based on ctx.scope_prefix or module metadata
-        module_prefix = (
-            ctx.model_metadata.get("module")
-            if ctx.model_metadata.get("module")
-            else None
-        )
+        # Compose prefix based on ctx.scope_prefix or module/domain metadata
+        module_prefix = _get_domain_from_meta(ctx.model_metadata)
         prefix = (
             f"{ctx.scope_prefix}_"
             if getattr(ctx, "scope_prefix", None)

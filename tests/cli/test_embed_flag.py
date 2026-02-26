@@ -15,14 +15,16 @@ def test_cli_embed_flag_controls_output(tmp_path):
         f.write(arr.tobytes())
 
     fuse_file = tmp_path / "m.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     fuse_file.write_text(
-        """
-@fuse 0.7
+        f"""
+@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain jupyter.cookbook
 const W: f32[2] = @import("weights.bin")
-node apply(x: f32[2]) -> f32[2] { y = MatMul(x, W) y }
+node apply(x: f32[2]) -> f32[2] {{ y = MatMul(x, W) y }}
 """
     )
 

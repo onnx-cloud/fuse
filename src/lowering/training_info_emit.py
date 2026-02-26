@@ -391,7 +391,12 @@ def emit_training_info(ctx, grad_summary: Dict[str, List]) -> None:
     #  - else, fall back to any in-graph 'loss' value
     tm = ctx.model_metadata.get("training")
     training_meta = tm if isinstance(tm, dict) else {}
-    loss_candidate = training_meta.get("loss") or ("loss" if "loss" in ctx.value_types else None)
+    training_cfg = ctx.model_metadata.get("training_config") or {}
+    loss_candidate = (
+        training_meta.get("loss")
+        or (training_cfg.get("loss") if isinstance(training_cfg, dict) else None)
+        or ("loss" if "loss" in ctx.value_types else None)
+    )
     if loss_candidate:
         found = None
         # match against algorithm outputs (stripped names) or explicit

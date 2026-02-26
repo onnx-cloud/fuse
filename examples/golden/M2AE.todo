@@ -1,0 +1,311 @@
+@fuse 0.7
+@opset onnx 18
+@version 1.0.0
+@domain examples.golden.m2ae
+
+@note "A unified vision-language model that learns joint representations through self-supervised prediction and cross-modal reconstruction."
+
+# -----------------
+# Core Types
+# -----------------
+type Image = f32[B,3,224,224]
+type Text = f32[B,77,512]
+type ImageLatent = f32[B,196,768]    # Patch-level
+type TextLatent = f32[B,77,256]      # Token-level
+type JointLatent = f32[B,512]        # Bottleneck discards irrelevant details
+
+# -----------------
+# ENCODER WEIGHTS 
+# -----------------
+@train weight W_img_patch: f32[768,3,16,16]
+@train weight b_img_patch: f32[768]
+
+@train weight W_txt_proj: f32[512,256]
+@train weight b_txt_proj: f32[256]
+
+@frozen weight W_target_patch: f32[768,3,16,16]
+@frozen weight b_target_patch: f32[768]
+
+@train weight W_predictor: f32[768,768]
+@train weight b_predictor: f32[768]
+
+@train weight W_fuse: f32[1024,512]
+@train weight b_fuse: f32[512]
+
+# -----------------
+# NEW: DECODER WEIGHTS
+# -----------------
+@train weight W_unfuse: f32[512,1024]  # Inverse of fusion
+@train weight b_unfuse: f32[1024]
+
+@train weight W_img_decode: f32[768,768]  # Image token reconstruction
+@train weight b_img_decode: f32[768]
+
+@train weight W_txt_decode: f32[256,512]  # Text token reconstruction
+@train weight b_txt_decode: f32[512]
+
+@train weight W_patch2img: f32[3,768,16,16]  # Transposed conv
+@train weight b_patch2img: f32[3]
+
+# -----------------
+# ENCODER 
+# -----------------
+graph encode_image(x: Image, target_mode: bool = false) -> ImageLatent {
+    W = If(target_mode, W_target_patch, W_img_patch)
+    b = If(target_mode, b_target_patch, b_img_patch)
+
+    patches = Conv(x, W, b, strides=[16,16], pads=[0,0,0,0])
+    tokens = Reshape(patches, [B,196,768])
+    return tokens
+}
+
+graph encode_text(x: Text) -> TextLatent {
+    tokens = MatMul(x, W_txt_proj)
+    tokens = Add(tokens, b_txt_proj)
+    return tokens
+}
+
+graph predict_tokens(context: ImageLatent) -> ImageLatent {
+    prediction = MatMul(context, W_predictor)
+    prediction = Add(prediction, b_predictor)
+    return prediction
+}
+
+graph fuse_modalities(img_latent: ImageLatent, txt_latent: TextLatent) -> JointLatent {
+    img_pooled = ReduceMean(img_latent, axes=[1], keepdims=false)  # [B,768]
+    txt_pooled = ReduceMean(txt_latent, axes=[1], keepdims=false)  # [B,256]
+
+    combined = Concat(img_pooled, txt_pooled, axis=-1)  # [B,1024]
+    fused = MatMul(combined, W_fuse)
+    fused = Add(fused, b_fuse)  # [B,512]
+    return fused
+}
+
+# -----------------
+# NEW: DECODER GRAPHS
+# -----------------
+graph unfuse_latent(z: JointLatent) -> (f32[B,768], f32[B,256]) {
+    # Project back to modality-specific dimensions
+    projected = MatMul(z, W_unfuse)
+    projected = Add(projected, b_unfuse)  # [B,1024]
+
+    # Split back into image and text components
+    img_part = Slice(projected, starts=[0], ends=[768], axes=[1])
+    txt_part = Slice(projected, starts=[768], ends=[1024], axes=[1])
+
+    return img_part, txt_part
+}
+
+graph decode_to_image_tokens(img_features: f32[B,768]) -> ImageLatent {
+    # Expand to patch tokens [B, 196, 768]
+    # Each patch gets the same global features + learned positional embedding
+    expanded = Expand(img_features, [B, 196, 768])
+
+    # Learn to reconstruct token details
+    tokens = MatMul(expanded, W_img_decode)
+    tokens = Add(tokens, b_img_decode)
+    return tokens
+}
+
+graph decode_to_text_tokens(txt_features: f32[B,256]) -> TextLatent {
+    # Expand to text tokens [B, 77, 256]
+    expanded = Expand(txt_features, [B, 77, 256])
+
+    # Project back to original text dimension
+    tokens = MatMul(expanded, W_txt_decode)
+    tokens = Add(tokens, b_txt_decode)
+    return tokens
+}
+
+graph tokens_to_image(tokens: ImageLatent) -> Image {
+    # Reshape tokens to spatial layout [B, 768, 14, 14]
+    spatial = Reshape(tokens, [B, 768, 14, 14])
+
+    # Transposed convolution to reconstruct image
+    # From [B, 768, 14, 14] to [B, 3, 224, 224]
+    img = ConvTranspose(
+        spatial, 
+        W_patch2img, 
+        b_patch2img,
+        strides=[16, 16],
+        pads=[0, 0, 0, 0]
+    )
+    return Clip(img, min=0.0, max=1.0)  # Assuming normalized images
+}
+
+graph tokens_to_text(tokens: TextLatent) -> Text {
+    # Simple projection back to original text embedding space
+    # In practice, you'd want a more sophisticated language model here
+    text = MatMul(tokens, Transpose(W_txt_proj, perm=[1,0]))
+    text = Add(text, Reshape(b_txt_proj, [1,512]))  # Broadcast
+    return text
+}
+
+# -----------------
+# COMPLETE ENCODER-DECODER PIPELINES
+# -----------------
+
+# 1. Auto-encode single image
+graph autoencode_image(x: Image) -> Image {
+    # Encode
+    img_latent = encode_image(x, target_mode=false)
+
+    # Fuse with dummy text
+    dummy_text: Text = ZerosLike(Reshape(x, [B,77,512])) * 0.0
+    txt_latent = encode_text(dummy_text)
+    z = fuse_modalities(img_latent, txt_latent)
+
+    # Decode
+    img_feat, _ = unfuse_latent(z)
+    img_tokens = decode_to_image_tokens(img_feat)
+    recon = tokens_to_image(img_tokens)
+    return recon
+}
+
+# 2. Auto-encode image + text
+graph autoencode_paired(image: Image, text: Text) -> (Image, Text) {
+    # Encode both
+    img_latent = encode_image(image, target_mode=false)
+    txt_latent = encode_text(text)
+    z = fuse_modalities(img_latent, txt_latent)
+
+    # Decode both
+    img_feat, txt_feat = unfuse_latent(z)
+
+    img_tokens = decode_to_image_tokens(img_feat)
+    txt_tokens = decode_to_text_tokens(txt_feat)
+
+    recon_img = tokens_to_image(img_tokens)
+    recon_txt = tokens_to_text(txt_tokens)
+
+    return recon_img, recon_txt
+}
+
+# 3. Cross-modal translation: Text → Image
+graph text_to_image(text: Text, style_seed: JointLatent = none) -> Image {
+    # Get text features
+    txt_latent = encode_text(text)
+
+    # Use provided style or default
+    style = If(style_seed == none, 
+              RandomUniformLike(Reshape(text, [B,512])),
+              style_seed)
+
+    # Unfuse with text on one side, style on other
+    # We'll use style as "image features"
+    img_feat = style  # Simple version: use style directly
+
+    # Decode image from combined features
+    img_tokens = decode_to_image_tokens(img_feat)
+    image = tokens_to_image(img_tokens)
+    return image
+}
+
+# 4. Cross-modal translation: Image → Text
+graph image_to_text(image: Image, style_seed: JointLatent = none) -> Text {
+    # Get image features
+    img_latent = encode_image(image, target_mode=false)
+
+    # Fuse with dummy text
+    dummy_text: Text = ZerosLike(Reshape(image, [B,77,512])) * 0.0
+    dummy_txt_latent = encode_text(dummy_text)
+    z = fuse_modalities(img_latent, dummy_txt_latent)
+
+    # Unfuse and get text features
+    _, txt_feat = unfuse_latent(z)
+
+    # Decode text
+    txt_tokens = decode_to_text_tokens(txt_feat)
+    text = tokens_to_text(txt_tokens)
+    return text
+}
+
+# 5. Style interpolation
+graph interpolate_modalities(
+    image1: Image, text1: Text,
+    image2: Image, text2: Text,
+    alpha: f32 = 0.5
+) -> (Image, Text) {
+    # Encode both pairs
+    z1 = fuse_modalities(
+        encode_image(image1, target_mode=false),
+        encode_text(text1)
+    )
+    z2 = fuse_modalities(
+        encode_image(image2, target_mode=false),
+        encode_text(text2)
+    )
+
+    # Interpolate in latent space
+    z_interp = (1-alpha) * z1 + alpha * z2
+
+    # Decode
+    img_feat, txt_feat = unfuse_latent(z_interp)
+
+    img_tokens = decode_to_image_tokens(img_feat)
+    txt_tokens = decode_to_text_tokens(txt_feat)
+
+    recon_img = tokens_to_image(img_tokens)
+    recon_txt = tokens_to_text(txt_tokens)
+
+    return recon_img, recon_txt
+}
+
+# -----------------
+# ENHANCED TRAINING WITH RECONSTRUCTION
+# -----------------
+
+@training { optimizer = Adam, lr = 1e-3 }
+graph train_autoencoder(
+    image: Image,
+    text: Text
+) -> (f32, f32, f32) {
+    # Auto-encode
+    recon_img, recon_txt = autoencode_paired(image, text)
+
+    # Reconstruction losses
+    img_loss = ReduceMean((image - recon_img) * (image - recon_img))
+    txt_loss = ReduceMean((text - recon_txt) * (text - recon_txt))
+
+    # JEPA-style prediction loss (on encoded features)
+    img_latent = encode_image(image, target_mode=false)
+    pred_latent = predict_tokens(img_latent)
+    target_latent = encode_image(image, target_mode=true)
+
+    # Mask random patches (simplified)
+    mask: bool[B,196] = RandomUniform() > 0.5
+    masked_pred = Where(mask, pred_latent, 0.0)
+    masked_target = Where(mask, target_latent, 0.0)
+    jepa_loss = ReduceMean((masked_pred - masked_target) * (masked_pred - masked_target))
+
+    total_loss = img_loss + txt_loss + jepa_loss
+    return total_loss, img_loss, txt_loss
+}
+
+# -----------------
+# TEST NODES
+# -----------------
+@proof graph test_full_system() {
+    B = 2
+
+    # Test data
+    img: Image = RandomUniform()
+    txt: Text = RandomUniform()
+
+    # Test autoencoding
+    recon_img, recon_txt = autoencode_paired(img, txt)
+    assert Shape(recon_img) == [B,3,224,224]
+    assert Shape(recon_txt) == [B,77,512]
+
+    # Test cross-modal
+    img_from_txt = text_to_image(txt)
+    txt_from_img = image_to_text(img)
+
+    assert Shape(img_from_txt) == [B,3,224,224]
+    assert Shape(txt_from_img) == [B,77,512]
+
+    # Test interpolation
+    img2: Image = RandomUniform()
+    txt2: Text = RandomUniform()
+    interp_img, interp_txt = interpolate_modalities(img, txt, img2, txt2, 0.3)
+}

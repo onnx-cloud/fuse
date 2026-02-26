@@ -1,6 +1,6 @@
 """Tests for scripts/supported_ops.py
 
-This test is opt-in: set UPDATE_OPS=1 to run and (re)generate `OPS.json` at repo root.
+This test is opt-in: set UPDATE_OPS=1 to run and (re)generate `ONNX_OPS.json` at repo root.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ OUT = ROOT / "OPS.json"
 BACKUP = ROOT / "OPS.json.bak-test"
 
 
-@pytest.mark.skipif(os.getenv("UPDATE_OPS") != "1", reason="opt-in test: set UPDATE_OPS=1 to update OPS.json")
+@pytest.mark.skipif(os.getenv("UPDATE_OPS") != "1", reason="opt-in test: set UPDATE_OPS=1 to update ONNX_OPS.json")
 def test_supported_ops_creates_valid_json_and_has_expected_shape():
     # Back up existing file if present
     if OUT.exists():

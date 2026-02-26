@@ -1,6 +1,9 @@
+import logging
 import pytest
 import os
 import sys
+# configure root logger for tests
+logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(name)s: %(message)s")
 # Ensure repo root is on sys.path so top-level packages (scripts/) are importable
 ROOT = os.path.dirname(os.path.dirname(__file__))
 if ROOT not in sys.path:
@@ -116,3 +119,24 @@ def cli_runner(tmp_path):
             return cli_main(argv)
 
     return Runner(tmp_path)
+
+# reorder golden-marked tests to the end of the session
+# and skip them if any prior failures have occurred
+
+def pytest_collection_modifyitems(config, items):
+    # move any item with the 'golden' marker to the end of the list
+    golden_items = [i for i in items if "golden" in i.keywords]
+    other_items = [i for i in items if "golden" not in i.keywords]
+    if golden_items:
+        items[:] = other_items + golden_items
+
+
+@pytest.fixture(autouse=True)
+def _skip_golden_on_failure(request):
+    # this runs for every test; if it's a golden test and previous
+    # failures exist, we skip it to honor the "only if all unit tests
+    # pass" policy.
+    if "golden" in request.keywords:
+        session = request.session
+        if session.testsfailed:
+            pytest.skip("skipping golden test due to earlier failure")

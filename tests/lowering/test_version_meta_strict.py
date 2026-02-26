@@ -28,13 +28,17 @@ def test_non_strict_accepts_incomplete_version():
 
 
 def test_strict_allows_valid_semver():
-    src = """
-    @version 0.7.0
-    node id(x: f32) -> f32 { return x }
+    # use project version so patch bumps stay valid
+    from src.util.project_version import get_project_version
+
+    version = get_project_version()
+    src = f"""
+    @version {version}
+    node id(x: f32) -> f32 {{ return x }}
     """
     ast = fuse_parser.parse(src)
     fl = FuseLowerer(strict=True)
     model = fl.lower(ast)
     metas = {p.key: p.value for p in model.metadata_props}
     # Ensure declared semver is preserved in strict mode
-    assert metas.get("version") == "0.7.0"
+    assert metas.get("version") == version

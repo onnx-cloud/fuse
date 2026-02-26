@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..graph_context import GraphContext, as_tensor_type, fuse_dtype_to_onnx
@@ -9,6 +10,8 @@ from ..errors import E030_LoweringError
 from .ops import OpsLowerer
 from .utils import LoweringError
 from .training_info_emit import TRAINING_DOMAIN
+# helper for domain lookup moved to graph_context to avoid circular imports
+from src.graph_context import get_model_domain as _get_model_domain
 from .type_inference import TypeInferencer
 from .graph_qualifier import GraphQualifier
 
@@ -30,10 +33,12 @@ class FuseLowerer:
         import_manager: Optional[ImportManager] = None,
         embed_external_data: bool = False,
         strict: bool = False,
+        inline_functions: bool = True,
     ): 
         self.import_manager = (
             import_manager if import_manager is not None else ImportManager()
         )
+        self.inline_functions = bool(inline_functions)
         self.imports = imports or {}
         self._current_source: Optional[str] = None
         self._current_module: Optional[str] = None
@@ -69,6 +74,11 @@ class FuseLowerer:
         name matches `target` will be emitted; other `model` declarations are
         skipped. This supports emitting one ONNX per declared graph in a file.
         """
+        # run early normalization/type‑shape passes
+        from .passes import NormalizationPass, TypeShapePass
+        ast = NormalizationPass().run(ast)
+        ast = TypeShapePass().run(ast)
+
         own_ctx = ctx is None
         # Compact mode suppresses emitting an initial Identity 'entry' node
         self._compact = bool(compact)
@@ -82,123 +92,98 @@ class FuseLowerer:
             self._lower_declarations(self.ctx, declarations)
         )
 
-        # If requested, run the gradient-generation scaffold pass which will
-        # create graph outputs for parameter gradients and loss.
+        # If requested, run the gradient/TrainingInfo generation pass once.
         if getattr(self, "emit_training", False):
             try:
                 from .gradients import generate_gradients
+                from .training_info_emit import emit_training_info
 
                 grad_summary = generate_gradients(self.ctx)
-                # If generate_gradients produced optimizer nodes and the
-                # user requested full training metadata emission, assemble a
-                # TrainingInfoProto and append it to the context (opt-in).
-                try:
-                    from .training_info_emit import emit_training_info
-
-                    emit_training_info(self.ctx, grad_summary)
-                except Exception:
-                    # Best-effort: don't fail lowering if TrainingInfo
-                    # emission fails (tests can assert absence).
-                    pass
-            except Exception:
-                # Best-effort: do not fail lowering if gradient pass is
-                # unavailable or raises; higher-level callers can detect
-                # missing outputs via metadata/tests.
-                pass
-
-            # Fallback: if no TrainingInfo was produced (e.g., an earlier
-            # emission attempt was swallowed by an exception), attempt a
-            # secondary pass and try to emit training info again so that
-            # transient ordering issues do not silently drop training metadata.
-            try:
-                if not getattr(self.ctx, "_training_info", None):
-                    from .gradients import generate_gradients as _gen2
-                    from .training_info_emit import emit_training_info as _emit2
-
-                    grad_summary = _gen2(self.ctx)
-                    _emit2(self.ctx, grad_summary)
-            except Exception:
-                # Best-effort fallback: continue without failing lowering.
-                pass
-
+                emit_training_info(self.ctx, grad_summary)
+            except Exception as e:
+                if getattr(self, "strict", False):
+                    raise
+                logger.warning("training emission failed: %s", e)
+        
         self._finalize_model(
             self.ctx, has_explicit_model, model_inputs, model_outputs
         )
 
-        # Final try: ensure training info is emitted if possible. This
-        # runs a final generate/emit pass to catch cases where earlier
-        # emission was skipped due to ordering or transient errors.
+        # After finalization, ensure a simple flag exists so tooling can
+        # detect a training variant even if structured metadata was omitted.
         if own_ctx and getattr(self, "emit_training", False):
-            try:
-                from .gradients import generate_gradients as _gen_final
-                from .training_info_emit import emit_training_info as _emit_final
-
-                # Attempt a final unconditional emit to catch cases where
-                # ordering prevented earlier emission (duplicate-safe).
-                gs = _gen_final(self.ctx)
-                _emit_final(self.ctx, gs)
-            except Exception:
-                # Best-effort: do not fail lowering on training emission
-                pass
-            # If no structured training metadata was created by earlier
-            # passes, annotate with a simple flag so tooling can detect the
-            # training variant without overwriting existing structured data.
             try:
                 if "training" not in self.ctx.model_metadata:
                     self.ctx.model_metadata["training"] = True
             except Exception:
                 pass
 
-            # Final augmentation: if a training.loss reference was supplied in
-            # metadata but no loss_binding was emitted, look for a suitable
-            # algorithm output and attach the binding to an existing TrainingInfo.
-            try:
-                tm = self.ctx.model_metadata.get("training")
-                training_meta = tm if isinstance(tm, dict) else {}
-                loss_candidate = training_meta.get("loss")
-                if loss_candidate:
-                    for ti in getattr(self.ctx, "_training_info", []) or []:
-                        try:
-                            existing = list(ti.loss_binding)
-                            if existing:
-                                continue
-                        except Exception:
-                            # attribute might be a shim or missing; treat as empty
-                            pass
-                        # inspect algorithm outputs
-                        try:
-                            outs = [o.name for o in ti.algorithm.output]
-                        except Exception:
-                            outs = []
-                        found = None
+        # Final augmentation: if a training.loss reference was supplied in
+        # metadata but no loss_binding was emitted, look for a suitable
+        # algorithm output and attach the binding to an existing TrainingInfo.
+        try:
+            tm = self.ctx.model_metadata.get("training")
+            training_meta = tm if isinstance(tm, dict) else {}
+            training_cfg = self.ctx.model_metadata.get("training_config") or {}
+            loss_candidate = training_meta.get("loss") or (
+                training_cfg.get("loss") if isinstance(training_cfg, dict) else None
+            )
+            if loss_candidate:
+                for ti in getattr(self.ctx, "_training_info", []) or []:
+                    try:
+                        existing = list(ti.loss_binding)
+                        if existing:
+                            continue
+                    except Exception:
+                        # attribute might be a shim or missing; treat as empty
+                        pass
+                    # inspect algorithm outputs
+                    try:
+                        outs = [o.name for o in ti.algorithm.output]
+                    except Exception:
+                        outs = []
+                    found = None
+                    for k in outs:
+                        if str(k).endswith(str(loss_candidate)) or str(loss_candidate) in str(k) or str(k).endswith("loss"):
+                            found = k
+                            break
+                    if not found:
                         for k in outs:
-                            if str(k).endswith(str(loss_candidate)) or str(loss_candidate) in str(k) or str(k).endswith("loss"):
+                            if "loss" in str(k):
                                 found = k
                                 break
-                        if not found:
-                            for k in outs:
-                                if "loss" in str(k):
-                                    found = k
-                                    break
-                        if found:
+                    if found:
+                        try:
+                            ti.loss_binding[str(loss_candidate)] = found
+                        except Exception:
                             try:
-                                ti.loss_binding[str(loss_candidate)] = found
+                                e = ti.loss_binding.add()
+                                e.key = str(loss_candidate)
+                                e.value = found
                             except Exception:
                                 try:
-                                    e = ti.loss_binding.add()
-                                    e.key = str(loss_candidate)
-                                    e.value = found
-                                except Exception:
-                                    try:
-                                        lb = getattr(ti, "loss_binding")
-                                        class _KV:
-                                            def __init__(self, key, value):
-                                                self.key = key
-                                                self.value = value
+                                    lb = getattr(ti, "loss_binding")
+                                    class _KV:
+                                        def __init__(self, key, value):
+                                            self.key = key
+                                            self.value = value
 
-                                        lb.append(_KV(str(loss_candidate), found))
-                                    except Exception:
-                                        pass
+                                    lb.append(_KV(str(loss_candidate), found))
+                                except Exception:
+                                    pass
+        except Exception:
+            pass
+
+            # Ensure training_info exists when an explicit algorithm graph is
+            # present even if gradient generation did not emit optimizer nodes.
+            try:
+                if not getattr(self.ctx, "_training_info", None):
+                    tm = self.ctx.model_metadata.get("training")
+                    training_meta = tm if isinstance(tm, dict) else {}
+                    if training_meta.get("algorithm_graph") is not None:
+                        from .training_info_emit import emit_training_info
+
+                        emit_training_info(self.ctx, {"opt_updates": {}, "optimizer_nodes": []})
             except Exception:
                 pass
 
@@ -209,7 +194,10 @@ class FuseLowerer:
             try:
                 tm = self.ctx.model_metadata.get("training")
                 training_meta = tm if isinstance(tm, dict) else {}
-                loss_candidate = training_meta.get("loss")
+                training_cfg = self.ctx.model_metadata.get("training_config") or {}
+                loss_candidate = training_meta.get("loss") or (
+                    training_cfg.get("loss") if isinstance(training_cfg, dict) else None
+                )
                 if loss_candidate:
                     for ti in model.training_info:
                         try:
@@ -324,22 +312,22 @@ class FuseLowerer:
         self.type_inferencer = TypeInferencer(ctx)
 
         # Namespacing is enabled by default: when a source file is provided
-        # require an explicit @domain declaration. If consumers want to opt
-        # out they should use the CLI flag `--no-ns` which bypasses this check.
-        has_module_decl = any(
+        # require an explicit @domain (formerly @module) declaration. If
+        # consumers want to opt out they should use the CLI flag `--no-ns`.
+        has_domain_decl = any(
             isinstance(d, dict)
             and d.get("type") == "meta"
-            and d.get("name") == "module"
+            and d.get("name") in ("domain", "module")
             for d in declarations
         )
         if (
             incoming_ctx is None
             and self._current_source
-            and not has_module_decl
+            and not has_domain_decl
             and node_names
         ):
             raise LoweringError(
-                "Namespacing requires a module (use --no-ns to disable)"
+                "Namespacing requires a domain (@domain) declaration (use --no-ns to disable)"
             )
 
 
@@ -382,6 +370,10 @@ class FuseLowerer:
     def _lower_declarations(
         self, ctx: GraphContext, declarations: List[Dict[str, Any]]
     ):
+        # run GraphLoweringPass as part of the new pipeline; currently a no-op
+        from .passes import GraphLoweringPass
+        GraphLoweringPass().run(declarations, ctx)
+
         model_inputs: set[str] = set()
         model_outputs: set[str] = set()
         has_explicit_model = False
@@ -463,6 +455,24 @@ class FuseLowerer:
             elif kind == "proof":
                 continue
             elif kind in ("node", "model", "export"):
+                # Special-case user-defined nodes/functions: when the caller
+                # requested function inlining we lower their bodies inline as
+                # before.  When `inline_functions` is False we instead convert
+                # the declaration into a reusable FunctionProto and skip
+                # lowering here.  Models and exports are always lowered normally
+                # (they form the graph entrypoints).
+                if kind == "node" and not getattr(self, "inline_functions", False):
+                    # skip lowering to graph; emit a FunctionProto instead
+                    try:
+                        self._emit_function_proto(decl, ctx)
+                        # record that this function has been seen so calls can
+                        # be mapped to a function op later
+                        self._user_decls.setdefault(decl.get("name"), decl)
+                    except Exception:
+                        # fallback: inline if protos cannot be emitted
+                        self._lower_function(decl, ctx)
+                    continue
+
                 # If a per-call target model was provided, skip unrelated
                 # top-level `model` declarations to support emitting one
                 # ONNX per declared graph inside the source file.
@@ -493,7 +503,7 @@ class FuseLowerer:
                 if (
                     name
                     and name in getattr(self, "_called_user_decls", set())
-                    and decl.get("type") == "fn"
+                    and decl.get("type") == "node"
                 ):
                     callers = getattr(self, "_callers", {})
                     called_only_by_tests = name in callers and callers[
@@ -651,9 +661,17 @@ class FuseLowerer:
                     int(ctx.extra_opsets.get(domain, 0)), int(version)
                 )
 
-        if decl.get("name") == "module":
-            self._current_module = str(decl.get("value"))
-            ctx.model_metadata["module"] = str(decl.get("value"))
+        if decl.get("name") in ("domain", "module"):
+            val = str(decl.get("value"))
+            self._current_module = val
+            # always store under the canonical key
+            ctx.model_metadata["domain"] = val
+            # keep legacy key too for a short transition period
+            if decl.get("name") == "module":
+                ctx.model_metadata.setdefault("module", val)
+                warnings.warn(
+                    "@module metadata is deprecated; use @domain instead", DeprecationWarning
+                )
 
         if decl.get("name") == "id":
             self._current_module = str(decl.get("value"))
@@ -725,8 +743,88 @@ class FuseLowerer:
             return typ
         return None
 
+    def _emit_function_proto(self, decl: Dict[str, Any], ctx: GraphContext):
+        """Convert a user-declared function/`node` into an ONNX FunctionProto.
+
+        The body is lowered into a temporary GraphContext and then turned into a
+        FunctionProto which is appended to ``ctx.functions``.
+        """
+        from onnx import FunctionProto
+
+        # Detect subgraph-typed parameters; FunctionProto cannot express
+        # runtime subgraph arguments (they are static attributes in ONNX).
+        any_subgraph = False
+        for p in decl.get("params", []):
+            try:
+                resolved = self._resolve_type(p.get("type") or p.get("type_decl"))
+            except Exception:
+                resolved = None
+            if isinstance(resolved, dict) and resolved.get("scalar") == "subgraph":
+                any_subgraph = True
+                break
+        if any_subgraph:
+            # fall back to inline lowering so the subgraph parameter is handled
+            self._lower_function(decl, ctx)
+            return
+
+        sub_ctx = GraphContext(name=decl.get("name"), opset=ctx.opset)
+        sub_ctx.scope_prefix = (
+            f"{ctx.scope_prefix}__{decl.get('name')}"
+            if getattr(ctx, "scope_prefix", None)
+            else decl.get("name")
+        )
+        sub_ctx._preserve_local_input_names = True
+        # Lower the declaration as though it were a normal function; this
+        # populates sub_ctx.nodes/inputs/outputs appropriately.
+        try:
+            self._lower_function(decl, sub_ctx)
+        except Exception as e:
+            # if lowering fails, we fall back to inlining as a best-effort
+            if getattr(self, "inline_functions", False):
+                # inline into parent context rather than emitting a proto
+                self._lower_function(decl, ctx)
+                return
+            # otherwise propagate the original error so callers can see it
+            raise
+        # build a full ModelProto so we can access opset_import and graph
+        model_proto = sub_ctx.build_model()
+        g = model_proto.graph
+        # compute a domain for this function.  Use the declared model
+        # domain (fallback to deprecated module) or a stable sentinel so
+        # custom functions never live in the empty/builtin domain.
+        func_domain = _get_model_domain(ctx) or "fuse.local"
+
+        func = FunctionProto()
+        if decl.get("name"):
+            func.name = decl.get("name")
+        func.domain = func_domain
+        # copy inputs/outputs
+        for inp in g.input:
+            func.input.append(inp.name)
+        for out in g.output:
+            func.output.append(out.name)
+        # copy nodes and other relevant fields
+        for n in g.node:
+            func.node.append(n)
+        # include shape/type info for all values: inputs, outputs, and others
+        for vi in g.input:
+            func.value_info.append(vi)
+        for vi in g.output:
+            func.value_info.append(vi)
+        for vi in g.value_info:
+            func.value_info.append(vi)
+        # copy opset imports from model_proto
+        for o in model_proto.opset_import:
+            func.opset_import.append(o)
+        func.doc_string = g.doc_string
+        # record domain back on declaration so callers can reference it
+        decl["_func_domain"] = func_domain
+        ctx.add_function(func)
+
     def _lower_function(self, decl: Dict[str, Any], ctx: GraphContext):
-        env: Dict[str, str] = {}
+        # use EnvDict for nested bindings and shadowing
+        from .context_stack import EnvDict
+        env: EnvDict = EnvDict({})
         types: Dict[str, Dict[str, Any]] = dict(ctx.value_types)
         env["__pending_doc__"] = ""
         # Track original local return names (e.g., `loss`) so they can be
@@ -787,7 +885,7 @@ class FuseLowerer:
                 # Decide a friendly node name: prefer `module.<func>` when a
                 # module/namespace is declared; fall back to the previous
                 # `<func>.entry` name when no module is available.
-                module_name = ctx.model_metadata.get("module") or self._current_module
+                module_name = _get_model_domain(ctx) or self._current_module
                 if module_name:
                     node_name_str = f"{module_name}.{decl.get('name')}"
                 else:
@@ -848,7 +946,7 @@ class FuseLowerer:
                     i += 1
                     tmp = f"{base}{i}"
                 module_name = (
-                    ctx.model_metadata.get("module") or self._current_module
+                    _get_model_domain(ctx) or self._current_module
                 )
                 ident_name = f"{module_name}.{k}" if module_name else f"{k}"
                 ctx.add_node("Identity", [env[k]], [tmp], name=ident_name)
@@ -1005,7 +1103,7 @@ class FuseLowerer:
                         i += 1
                         tmp = f"{base}{i}"
                     module_name = (
-                        ctx.model_metadata.get("module") or self._current_module
+                        _get_model_domain(ctx) or self._current_module
                     )
                     ident_name = f"{module_name}.{nm}" if module_name else f"{nm}"
                     ctx.add_node("Identity", [internal], [tmp], name=ident_name)
@@ -1424,17 +1522,46 @@ class FuseLowerer:
                     expr, ctx, env, types, type_hint=type_hint
                 )
             if "if" in expr:
-                branches = expr["if"]
-                if len(branches) >= 2:
-                    return self._lower_expr(
-                        branches[1],
-                        ctx,
-                        env,
-                        types,
-                        type_hint=type_hint,
-                        out_name=out_name,
-                    )
-                return None, None
+                # `if` expressions are represented in the AST as a tuple of
+                # parts: (cond, then_node[, else_node]).  Earlier versions
+                # simply lowered the true branch and ignored the condition,
+                # resulting in missing environment bindings (see smoke tests)
+                # and stray string literals.  Convert the tuple into a
+                # pseudo-ONNX call and delegate to the existing
+                # `_lower_if_call` implementation which handles subgraph
+                # generation, condition lowering, and output wiring.
+                parts = expr.get("if") or ()
+                if not parts:
+                    return None, None
+
+                cond = parts[0]
+                then_node = parts[1] if len(parts) > 1 else None
+                else_node = parts[2] if len(parts) > 2 else None
+
+                def _wrap(node):
+                    # the if call helper expects a body dict with
+                    # ``type: 'block'``; the parser returns a bare list of
+                    # statements for a `{ ... }` node, so normalize it here.
+                    if node is None:
+                        return None
+                    if isinstance(node, list):
+                        return {"type": "block", "stmts": node, "returns": []}
+                    return node
+
+                call = {
+                    "call": "if",
+                    "cond": cond,
+                    "then": _wrap(then_node),
+                    "else": _wrap(else_node) if else_node is not None else None,
+                }
+                return self.ops_lowerer._lower_if_call(
+                    call,
+                    ctx,
+                    env,
+                    types,
+                    type_hint=type_hint,
+                    out_name=out_name,
+                )
 
         if isinstance(expr, str):
             # Normalize boolean literal strings to actual booleans
@@ -1454,11 +1581,16 @@ class FuseLowerer:
                 return expr, types.get(expr) or ctx.value_types.get(expr)
             # DEBUG: detect cases where operator names are being treated as literals
             if expr in ("MatMul", "Cast", "Greater"):
-                import traceback, sys
-                print("DEBUG stray-string-literal", expr)
-                print("env:", env)
-                print("ctx.value_types keys:", list(ctx.value_types.keys())[:20])
-                traceback.print_stack(file=sys.stdout)
+                # debugging helper: unexpected operator names treated as literals
+                logger.debug("stray operator string treated as literal: %s", expr)
+                logger.debug("env keys: %s", list(env.keys()))
+                logger.debug("ctx.value_types keys: %s", list(ctx.value_types.keys())[:20])
+                try:
+                    import traceback
+
+                    traceback.print_stack(file=None)
+                except Exception:
+                    pass
             name = ctx.add_literal(expr, as_tensor_type(type_hint))
             return name, as_tensor_type(type_hint)
 
@@ -1694,7 +1826,7 @@ class FuseLowerer:
                 return [_rename_ast(i) for i in x]
             return x
 
-        inline_env = dict(env)
+        inline_env = dict(env)  # EnvDict supports dict() conversion
         for pname, gname in param_map.items():
             inline_env[pname] = gname
 
@@ -1770,7 +1902,7 @@ class FuseLowerer:
         # helps external tooling bind external tensors to local initializers
         # and inputs by a stable global name.
         try:
-            module = ctx.model_metadata.get("module") or self._current_module
+            module = _get_model_domain(ctx) or self._current_module
             func = decl.get("name")
             tb = ctx.model_metadata.setdefault("tensor_bus", {})
             # Iterate over local types recorded during lowering and export

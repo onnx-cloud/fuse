@@ -93,7 +93,7 @@ def parse_args(argv=None):
         "-o",
         type=Path,
         default=repo_root / "OPS.json",
-        help="Output file path (default: OPS.json at repo root)",
+        help="Output file path (default: ONNX_OPS.json at repo root)",
     )
     p.add_argument("--dry-run", action="store_true", help="Do not write file; print summary")
     return p.parse_args(argv)

@@ -1,0 +1,10 @@
+@fuse 0.7
+@domain examples.smoke
+
+# simple if expression
+
+graph if_expr(x: f32) -> f32 {
+  # relational operator via explicit op
+  y = if (Greater(x, 0)) { x } else { Mul(x, -1.0) };
+  y
+}

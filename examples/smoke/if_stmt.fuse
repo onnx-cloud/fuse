@@ -1,0 +1,14 @@
+@fuse 0.7
+@domain examples.smoke
+
+# simple if statement
+
+graph if_stmt(x: f32) -> f32 {
+  # use if expression to avoid cross-branch locals
+  out = if (true) {
+    Add(x, 1.0)
+  } else {
+    Sub(x, 1.0)
+  }
+  out
+}

@@ -1,6 +1,6 @@
 Unreleased
 
-- Add: Generated operator catalog `OPS.json` and a convenience script `scripts.supported_ops` to regenerate it (use `python -m scripts.supported_ops --output OPS.json`).
+- Add: Generated operator catalog `ONNX_OPS.json` and a convenience script `scripts.supported_ops` to regenerate it (use `python -m scripts.supported_ops --output ONNX_OPS.json`).
 
 - Note: `GraphContext` accepts an injectable `name_allocator: NameAllocator` (default: `StableNameAllocator`) to enable deterministic, testable naming. This is backwards-compatible: if no allocator is provided, legacy naming is preserved. If you depend on specific node names for downstream tooling, add a test to lock the expected naming behavior and update the changelog when intentionally changing it.
 

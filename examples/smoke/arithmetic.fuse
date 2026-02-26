@@ -1,0 +1,12 @@
+@fuse 0.7
+@opset onnx 18
+@domain examples.smoke
+
+# simple arithmetic ops: add, mul, relu
+
+graph arithmetic(a: f32[1], b: f32[1]) -> f32[1] {
+  sum = Add(a, b)
+  prod = Mul(a, b)
+  out = Relu(sum)
+}
+

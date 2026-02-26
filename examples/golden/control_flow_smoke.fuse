@@ -1,0 +1,41 @@
+@fuse 0.7
+@opset onnx 18
+@version 0.7.0
+@domain examples.golden
+
+# Minimal control‑flow smoke set
+
+graph if_stmt(x: f32) -> f32 {
+  out = if (true) {
+    Add(x, 1.0)
+  } else {
+    Sub(x, 1.0)
+  }
+  out
+}
+
+graph if_expr(x: f32) -> f32 {
+  y = if (Greater(x, 0)) { x } else { Mul(x, -1.0) };
+  y
+}
+
+graph simple_loop(n: i64) -> i64 {
+  i = 0
+  sum = 0
+  out = loop(i, true, sum) {
+    cond = Less(i, n);
+    sum2 = Add(sum, i);
+    i2 = Add(i, 1);
+    return (cond, i2, sum2)
+  }
+  out
+}
+
+graph simple_scan(xs: f32[4]) -> f32[4] {
+  out = scan(xs, 0.0) {
+    # args: x, state
+    y = Add(state, x);
+    return (true, y)
+  }
+  out
+}

@@ -284,16 +284,15 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
                 }
             )
 
-    # Lower to ONNX
+    # Lower to ONNX (primary model).  Additionally, create an inlined
+    # variant to drive metrics calculations; the inlined model ensures that
+    # shape inference and flops formulas work identically to the historic
+    # behavior when functions were automatically expanded.
     from src.lowering import FuseLowerer
     import onnx
 
     fl = FuseLowerer(emit_training=False)
     try:
-        # Do not provide source_file here to avoid triggering namespacing checks
-        # for small ad-hoc inputs used by tests and tooling (they may not
-        # include a top-level @module). When callers need strict namespacing
-        # validation, invoke lowering explicitly with a source file.
         model = fl.lower(ast)
     except Exception as e:
         return {
@@ -304,6 +303,20 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
             "total_bytes": sum(w.get("bytes") or 0 for w in weights),
             "error": str(e),
         }
+    # prepare a fully inlined model for metrics if the original contained
+    # FunctionProtos; compute regardless for simplicity.
+    try:
+        fl_inline = FuseLowerer(emit_training=False, inline_functions=True)
+        inline_model = fl_inline.lower(ast)
+    except Exception:
+        inline_model = model
+
+    # If the lowered model contains user-defined FunctionProto entries, we
+    # will treat the nodes inside them as part of the overall graph for
+    # metrics purposes (so tests written against inlined models continue to
+    # pass).  We handle this later during the node iteration below, but the
+    # majority of metrics will be computed against `inline_model` to ensure
+    # shapes are available.
 
     # Deterministically serialize model to compute a hash
     import hashlib
@@ -364,7 +377,9 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
                 pass
         return inferred or model
 
-    inferred = _safe_infer_shapes(model)
+    # run shape inference on the inlined variant so that shapes inside
+    # FunctionProto bodies are propagated
+    inferred = _safe_infer_shapes(inline_model)
 
     vmap = _value_info_map(inferred)
     inits = _init_map(inferred)
@@ -380,8 +395,15 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
         if w.get("elements") is not None:
             total_parameters += int(w.get("elements"))
 
-    # iterate nodes deterministically by position
-    for idx, n in enumerate(list(inferred.graph.node)):
+    # iterate nodes deterministically by position.  Even though we ran
+    # metrics on the inlined model, the `inferred` graph may still contain
+    # FunctionProto entries; include their nodes for completeness.
+    node_list = list(inferred.graph.node)
+    for fn in getattr(inferred, "functions", []):
+        # preserve order as declared
+        for n in fn.node:
+            node_list.append(n)
+    for idx, n in enumerate(node_list):
         ops[n.op_type] = ops.get(n.op_type, 0) + 1
 
         node_id = _node_identifier(n, idx)

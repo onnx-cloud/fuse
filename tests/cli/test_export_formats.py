@@ -18,13 +18,15 @@ def _write_dummy(path):
 def test_export_flags_invoke_converters(tmp_path, monkeypatch):
     # prepare a simple .fuse
     fuse_file = tmp_path / "m.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     fuse_file.write_text(
-        """
-@fuse 0.7
+        f"""
+@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain jupyter.cookbook
-node apply(x: f32[2]) -> f32[2] { y = MatMul(x, x) y }
+node apply(x: f32[2]) -> f32[2] {{ y = MatMul(x, x) y }}
 """
     )
 

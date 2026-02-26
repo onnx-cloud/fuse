@@ -13,14 +13,16 @@ def test_npz_single_array_embedding(tmp_path):
     np.savez(npz_path, arr=arr)
 
     fuse_file = tmp_path / "m.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     fuse_file.write_text(
-        """
-@fuse 0.7
+        f"""
+@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain jupyter.cookbook
 const WEIGHTS: f32[2,3] = @import("weights.npz")
-node apply(x: f32[2]) -> f32[2] { y = MatMul(x, WEIGHTS) y }
+node apply(x: f32[2]) -> f32[2] {{ y = MatMul(x, WEIGHTS) y }}
 """
     )
 
@@ -45,14 +47,16 @@ def test_npz_multiple_arrays_require_key(tmp_path):
     np.savez(npz_path, first=a, second=b)
 
     fuse_file = tmp_path / "m2.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     fuse_file.write_text(
-        """
-@fuse 0.7
+        f"""
+@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain jupyter.cookbook
 const W: f32[2] = @import("weights2.npz")
-node apply(x: f32[2]) -> f32[2] { y = MatMul(x, W) y }
+node apply(x: f32[2]) -> f32[2] {{ y = MatMul(x, W) y }}
 """
     )
 

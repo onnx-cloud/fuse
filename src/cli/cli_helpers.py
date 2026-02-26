@@ -225,6 +225,8 @@ def export_onnx_from_ast(
     output_base: str = "./tmp/onnx",
     flat: bool = False,
     compact: bool = False,
+    # compress/inlines user functions (default False=emit FunctionProto)
+    inline: bool = False,
     # explicit training emission opt-in
     training: bool = False,
     # whether to embed imported/external tensors (opt-in)
@@ -258,7 +260,7 @@ def export_onnx_from_ast(
     # If the source contains multiple top-level `model` declarations,
     # emit one ONNX model per declared graph so they can be inspected/used
     # independently (e.g., `jepa_encode.onnx`, `jepa_predict.onnx`, ...).
-    fl = FuseLowerer(emit_training=bool(training), embed_external_data=bool(embed_external_data), strict=bool(strict))
+    fl = FuseLowerer(emit_training=bool(training), embed_external_data=bool(embed_external_data), strict=bool(strict), inline_functions=bool(inline))
     # Inspect the top-level AST entries (do not flatten) so we preserve the
     # parsed declaration structures and avoid mixing nested Tree objects into
     # our per-model lowering inputs.

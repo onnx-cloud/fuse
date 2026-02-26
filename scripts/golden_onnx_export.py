@@ -2,41 +2,35 @@
 """
 Export all examples/golden/*.fuse to ONNX in tmp/onnx/ for review.
 """
-# Ensure we run using the project's virtualenv Python (if present). This avoids accidental
-# use of the system `python` when developers forget to activate the venv. We perform
-# this check *before* importing project modules so those imports happen under the
-# venv Python if available. Additionally, ensure the repository root is on
-# sys.path so invoking the script via its path (python script.py ...) still finds
-# the local `src` package.
-try:
-    import os
-    import sys
-    from pathlib import Path
+# ensure repo root on sys.path so `from scripts import ...` works when
+# invoking the script directly
+import sys
+import pathlib
+_root = pathlib.Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
-    _here = Path(__file__).resolve().parents[1]
-    # Ensure project root is on sys.path so 'src' resolves even when invoked as a
-    # script path (sys.path[0] would otherwise be scripts/)
-    if str(_here) not in sys.path:
-        sys.path.insert(0, str(_here))
+# Standard environment bootstrap (adds repo root to sys.path and re-execs
+# inside the project virtualenv if one exists).  Additional re-exec logic for
+# missing dependencies lives later in this file.
+from scripts.script_utils import bootstrap_script
+bootstrap_script()
 
-    _venv_py = _here / ".venv" / "bin" / "python"
-    if _venv_py.exists():
-        try:
-            if Path(sys.executable).resolve() != _venv_py.resolve():
-                os.execv(str(_venv_py), [str(_venv_py)] + sys.argv)
-        except Exception:
-            # If re-exec fails for any reason, continue with current interpreter
-            pass
-except Exception:
-    pass
+from pathlib import Path
 
 import sys
 from pathlib import Path
+import logging
+
+# setup basic logging for this script; tests spawn the script so they can
+# observe these logs via stdout/stderr
+logging.basicConfig(level=logging.DEBUG, format="[golden_export %(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 # Diagnostic: reveal interpreter and env early for child-mode debugging
 try:
     _here = Path(__file__).resolve().parents[1]
     _venv_py = _here / ".venv" / "bin" / "python"
-    print(f"[golden_export] {_here}", flush=True)
+    logger.debug("script root: %s", _here)
 except Exception:
     pass
 
@@ -93,10 +87,11 @@ if __name__ == "__main__" and "--process-file" in sys.argv:
 
         fuse_path = Path(opts.process_file)
         if not fuse_path.exists():
-            print(f"File not found: {fuse_path}")
+            logger.error("File not found: %s", fuse_path)
             sys.exit(1)
         out_dir = Path(opts.out_dir) if opts.out_dir else Path(__file__).resolve().parents[1] / "tmp/onnx"
         out_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug("processing file %s -> %s", fuse_path, out_dir)
 
         src_text = fuse_path.read_text()
         # Allow tests to inject a friendly @fuse via env if missing
@@ -104,10 +99,10 @@ if __name__ == "__main__" and "--process-file" in sys.argv:
         import re
         has_domain = bool(re.search(r"^\s*@(?:domain|module)\b", src_text, re.MULTILINE))
         if has_domain:
-            model_paths = cli_helpers.export_onnx_from_ast(parsed, source_file=str(fuse_path), out_dir=str(out_dir), flat=False)
+            model_paths = cli_helpers.export_onnx_from_ast(parsed, source_file=str(fuse_path), out_dir=str(out_dir), flat=False, inline=True)
         else:
             # Legacy tolerant mode: do not require namespace and emit flat files
-            model_paths = cli_helpers.export_onnx_from_ast(parsed, source_file=None, out_dir=str(out_dir), flat=True)
+            model_paths = cli_helpers.export_onnx_from_ast(parsed, source_file=None, out_dir=str(out_dir), flat=True, inline=True)
         # Write AST artifacts if requested
         if opts.ast:
             for mp in model_paths or []:
@@ -343,11 +338,11 @@ except Exception:
     has_domain = bool(re.search(r"^\s*@(?:domain|module)\b", src_text, re.MULTILINE))
     if has_domain:
         model_paths = cli_helpers.export_onnx_from_ast(
-            parsed_ast, source_file=str(fuse_path), out_dir=str(out_dir), flat=False
+            parsed_ast, source_file=str(fuse_path), out_dir=str(out_dir), flat=False, inline=True
         )
     else:
         # Legacy tolerant mode: do not require namespace and emit flat files
-        model_paths = cli_helpers.export_onnx_from_ast(parsed_ast, source_file=None, out_dir=str(out_dir), flat=True)
+        model_paths = cli_helpers.export_onnx_from_ast(parsed_ast, source_file=None, out_dir=str(out_dir), flat=True, inline=True)
 
     # Debug: emit model paths (helpful when running under test harnesses)
     try:
@@ -359,7 +354,7 @@ except Exception:
     if not model_paths:
         try:
             print("[golden_export] no models emitted, attempting tolerant flat export...", flush=True)
-            model_paths = cli_helpers.export_onnx_from_ast(parsed_ast, source_file=None, out_dir=str(out_dir), flat=True)
+            model_paths = cli_helpers.export_onnx_from_ast(parsed_ast, source_file=None, out_dir=str(out_dir), flat=True, inline=True)
             print(f"[golden_export] fallback model_paths: {model_paths}", flush=True)
         except Exception as e:
             print(f"[golden_export] fallback export failed: {e}", flush=True)

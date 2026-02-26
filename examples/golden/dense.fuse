@@ -1,0 +1,10 @@
+type T f32[N, features]
+
+param W0: f32[features, 32]
+param b0: f32[32]
+
+node dense_relu(x: T) -> f32[N, 32] {
+  m = MatMul(x, W0)
+  y = Add(m, b0)
+  Relu(y)
+}

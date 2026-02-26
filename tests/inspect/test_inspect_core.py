@@ -5,6 +5,7 @@ from pathlib import Path
 # tests are intentionally written first (TDD) and will fail until the feature is
 # implemented.
 from src.inspector import inspect_model
+from src import cli_helpers
 
 
 def test_inspect_writes_core_artifacts(tmp_path):
@@ -17,6 +18,18 @@ def test_inspect_writes_core_artifacts(tmp_path):
         if p.exists():
             onnx_model = p
             break
+    if onnx_model is None:
+        demo = Path("examples/golden/golden.fuse")
+        assert demo.exists(), "golden.fuse fixture must exist"
+        ast = cli_helpers.parse_fuse_file(str(demo))
+        gen_dir = tmp_path / "onnx"
+        gen_dir.mkdir(parents=True, exist_ok=True)
+        models = cli_helpers.export_onnx_from_ast(
+            ast, source_file=str(demo), out_dir=str(gen_dir)
+        )
+        assert models, "expected onnx export for golden.fuse"
+        onnx_model = Path(models[0])
+
     assert onnx_model is not None, "missing golden model fixture: checked tmp/onnx/golden.onnx and onnx/golden.onnx"
 
     out_dir = tmp_path / "golden.onnx/"

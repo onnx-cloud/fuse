@@ -1,12 +1,16 @@
 # fuse - cognitive compiler
 
-Fuse is a **cognitive compiler** and **ONNX DSL** that makes building neural networks as simple as writing math equations. Design, train, and deploy models in an interactive notebook environment with AI-powered assistance.
+Fuse is a **compiler** that makes building neural networks as simple as writing math equations. 
 
-**Jump to:** [Quick Start](#-quick-start-60-seconds) • [Prerequisites](#-prerequisites-check) • [CLI Tools](#command-line-tools) • [Development](#development--scripts) • [Documentation](https://github.com/onnx-cloud/fuse/tree/main/docs)
+Design, train, and deploy models in an interactive notebook environment with AI-powered assistance.
+
+- [Quick Start](#-quick-start-60-seconds) 
+- [Prerequisites](#-prerequisites-check)
+- [CLI Tools](#command-line-tools)
+- [Development](#development--scripts)
+- [Documentation](https://github.com/onnx-cloud/fuse/tree/main/docs)
 
 ---
-
-## 🚀 Quick Start (60 seconds)
 
 ### Option 1: Jupyter (Recommended)
 
@@ -18,7 +22,7 @@ make jupyter
 http://localhost:8888
 ```
 
-**That's it!** You now have a complete ML development environment with 221 ONNX operators, AI chat assistant, and 63 cookbook recipes.
+**That's it!** You now have a complete ML development environment with ONNX operators, AI chat assistant, and cookbook recipes.
 
 📖 **New to Fuse?** See [docker/jupyter/README.md](docker/jupyter/README.md) for detailed Jupyter setup guide.
 
@@ -37,6 +41,9 @@ fuse onnx -f ./examples/golden/ -o ./tmp/onnx/ -ns=my.ns
 
 # View AST
 fuse ast -f ./examples/golden/golden.fuse -o ./tmp/golden.ast.json
+
+# Build standalone CLI binary (linux/macOS host)
+make cli      # depends on make install, output in dist/
 ```
 
 ---
@@ -82,11 +89,9 @@ Troubleshooting:
 Makefile shortcuts (convenience):
 
 - `make setup-dev` — create `.venv` and install development & test dependencies (runs `scripts/setup_dev.sh`).
-- `make dev-install` — runs `setup-dev` and performs an editable install with dev extras into `.venv` (`uv pip install -e '.[dev]'`).
 - `make venv` — create just the `.venv` (no package installs).
 - `make test` — run the full test suite (`pytest`).
-- `make test-lowering` — run only `tests/lowering` for fast, focused feedback during lowering work.
-
+- `make test-lowering` — run only `tests/lowering` for fast, focused feedback during lowering work.- `make cli` — build a standalone command‑line executable using PyInstaller (built binary placed in `dist-exe/`; requires host OS build).
 Example:
 
 ```bash
@@ -121,7 +126,7 @@ Scripts are provided in the `scripts/` directory to simplify common tasks:
 - `scripts/run_examples.sh [--validate]` — lower `examples/golden/` to ONNX (output to `onnx/`). Use `--validate` to run `onnx.checker` on the generated models.
 - `scripts/validate_onnx.sh <model.onnx>` — validate a single ONNX model using `onnx.checker`.
 - `scripts/run_tests.sh` — run the test suite via `pytest`.
-- `scripts/supported_ops.py` — generate deterministic operator catalog `OPS.json` using local `onnx` schemas (usage: `python -m scripts.supported_ops --output OPS.json`).
+- `scripts/supported_ops.py` — generate deterministic operator catalog `ONNX_OPS.json` using local `onnx` schemas (usage: `python -m scripts.supported_ops --output ONNX_OPS.json`).
 
 ### Regenerating golden ONNX models 🔁
 
@@ -139,7 +144,7 @@ git add onnx/*.onnx && git commit -m "Regenerate golden ONNX models"
 ```
 
 If CI detects differences on a PR, regenerate locally, inspect changes, and submit a follow-up commit updating the goldens.
-- `scripts/build_exe.sh` — build a standalone executable via PyInstaller (build on target OS).
+- `scripts/build_exe.sh` — build a standalone executable via PyInstaller (build on target OS).  The script now automatically injects the correct project version and build timestamp into `src/__init__.py` before packaging; run with `--patch-only` to apply the patch without doing a full build (useful for testing).
 - `scripts/build_wheel.sh` — build a wheel into `dist/` (requires the `build` package; script installs it if missing).
 - `scripts/format.sh` / `scripts/lint.sh` — run formatters/linters if installed (black, ruff).
 - `scripts/help.sh` — list available scripts and basic usage.

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import pytest
 
 import onnx
 from onnx import TensorProto
@@ -108,3 +109,85 @@ def test_quantize_annotation_emits_quantize_nodes():
     assert any(
         n.op_type in ("QuantizeLinear", "Cast") for n in model.graph.node
     )
+
+
+def test_scan_num_scan_inputs():
+    from src.util.project_version import get_project_version
+    version = get_project_version()
+    src = f"""\
+@fuse {version}
+@opset onnx 18
+@domain scantest
+node sc(seq: list[f32], st: f32) -> f32 {{
+    # simple scan: propagate state unmodified
+    return scan(seq, st) {{
+        new = state_in
+        return new
+    }}
+}}
+"""
+    ast = fuse_parser.parse(src)
+    model = FuseLowerer().lower(ast)
+    onnx.checker.check_model(model)
+    scans = [n for n in model.graph.node if n.op_type == "Scan"]
+    assert scans, "no Scan node emitted"
+    attr = next((a for a in scans[0].attribute if a.name == "num_scan_inputs"), None)
+    assert attr is not None
+    assert attr.i == 1
+
+    # second scenario: two sequence inputs should count as two scan inputs
+    src2 = f"""\
+@fuse {version}
+@opset onnx 18
+@domain scantest
+node sc2(seq1: list[f32], seq2: list[f32], st: f32) -> f32 {{
+    return scan(seq1, seq2, st) {{
+        new = state_in
+        return new
+    }}
+}}
+"""
+    ast2 = fuse_parser.parse(src2)
+    model2 = FuseLowerer().lower(ast2)
+    scans2 = [n for n in model2.graph.node if n.op_type == "Scan"]
+    assert scans2, "no Scan in second scenario"
+    attr2 = next((a for a in scans2[0].attribute if a.name == "num_scan_inputs"), None)
+    assert attr2 is not None
+    assert attr2.i == 2
+
+
+def test_loop_injects_condition():
+    from src.util.project_version import get_project_version
+    version = get_project_version()
+    src = f"""\
+@fuse {version}
+@opset onnx 18
+@domain looptest
+node lt(count: i64) -> f32 {{
+    out = loop(count, true, 0.0) {{
+        new = state_in
+        return new
+    }}
+    return out
+}}
+"""
+    ast = fuse_parser.parse(src)
+    model = FuseLowerer().lower(ast)
+    onnx.checker.check_model(model)
+    # verify that the Loop body's first output is bool by inspecting the graph
+    loop_node = next(n for n in model.graph.node if n.op_type == "Loop")
+    body = next(a for a in loop_node.attribute if a.name == "body").g
+    assert body.output and body.output[0].type.tensor_type.elem_type == int(onnx.TensorProto.BOOL)
+
+
+def test_if_missing_condition_raises():
+    from src.lowering import FuseLowerer
+    from src.graph_context import GraphContext
+    from src.lowering.utils import LoweringError
+
+    fl = FuseLowerer()
+    ops = fl.ops_lowerer
+    ctx = GraphContext()
+    with pytest.raises(LoweringError):
+        ops._lower_if_call({"call": "If"}, ctx, {}, {})
+

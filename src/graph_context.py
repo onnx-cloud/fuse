@@ -92,6 +92,29 @@ def fuse_dtype_to_onnx(dtype: str) -> int:
     return DTYPE_MAP[dtype]
 
 
+# helper moved from lowering.main to avoid circular imports
+
+def get_model_domain(ctx: "GraphContext") -> str | None:
+    """Return the model's declared domain/key, accepting deprecated module.
+
+    Emits a DeprecationWarning when only 'module' key is present.  Useful
+    for any code needing a stable domain lookup without depending on
+    lowering.main which imports ops.
+    """
+    if not ctx or not isinstance(ctx, GraphContext):
+        return None
+    dom = ctx.model_metadata.get("domain")
+    if dom is None and "module" in ctx.model_metadata:
+        import warnings
+
+        warnings.warn(
+            "metadata key 'module' is deprecated; please use 'domain' instead",
+            DeprecationWarning,
+        )
+        dom = ctx.model_metadata.get("module")
+    return dom
+
+
 def onnx_dtype_to_fuse(dtype: int) -> str:
     return ONNX_TO_FUSE.get(dtype, DEFAULT_SCALAR)
 
@@ -154,6 +177,8 @@ class GraphContext:
         self.graph_doc_string: str = ""
         # Optional training_info entries to append to the emitted ModelProto
         self._training_info: list = []
+        # Local FunctionProto definitions collected during lowering
+        self.functions: List[onnx.FunctionProto] = []
         # Backwards compatible counters used when no allocator is provided
         self._node_id = 0
         self._const_id = 0
@@ -170,6 +195,10 @@ class GraphContext:
         # When True, embed external/imported tensor bytes directly into
         # initializer.raw_data rather than creating external_data entries
         self.embed_external_data: bool = bool(embed_external_data)
+        # flag indicating whether we should add graph inputs for constant
+        # initializers. ONNX opset 9+ no longer requires this; removing them
+        # avoids spurious inputs in generated models.
+        self._emit_inputs_for_consts: bool = self.opset < 9
 
     def _next_node_name(self, op_type: str) -> str:
         # Prefer injected allocator when present; fall back to legacy counter
@@ -229,6 +258,44 @@ class GraphContext:
         if sp:
             return f"{sp}_{name}"
         return name
+
+    def add_function(self, func: "onnx.FunctionProto"):
+        """Record a FunctionProto for later inclusion in the emitted ModelProto.
+
+        The caller is responsible for ensuring any names inside *func* are
+        already prefixed/qualified appropriately for the current graph context.
+        """
+        # Validate name presence
+        if not func.name:
+            raise ValueError("FunctionProto must have a non-empty name")
+        dom = getattr(func, "domain", "") or ""
+        key = (dom, func.name)
+        # deduplicate identical domain/name pairs
+        for existing in self.functions:
+            if (getattr(existing, "domain", "") or "", existing.name) == key:
+                # duplicate – log and ignore
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "skipping duplicate FunctionProto %s.%s",
+                    dom or "<core>",
+                    func.name,
+                )
+                return
+        try:
+            self.functions.append(func)
+        except Exception as e:
+            # best-effort: log and respect strict mode
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "failed to add FunctionProto %s.%s: %s",
+                dom or "<core>",
+                func.name,
+                e,
+            )
+            if getattr(self, "strict", False):
+                raise
 
     def add_param(self, param: Dict[str, Any]) -> str:
         # Accept both resolved type dicts and raw parser-produced forms. Some
@@ -513,8 +580,10 @@ class GraphContext:
                 self.defined_values.add(name)
                 self.defined_values.add(graph_name)
                 try:
-                    if graph_name not in self.inputs and not getattr(
-                        self, "_preserve_local_input_names", False
+                    if (
+                        self._emit_inputs_for_consts
+                        and graph_name not in self.inputs
+                        and not getattr(self, "_preserve_local_input_names", False)
                     ):
                         vi = helper.make_tensor_value_info(
                             graph_name, fuse_dtype_to_onnx(typ["scalar"]), dims
@@ -610,7 +679,10 @@ class GraphContext:
         # "module.fn.const") can be resolved to an initializer. This mirrors
         # the behaviour used for external imported tensors.
         try:
-            if not getattr(self, "_preserve_local_input_names", False):
+            if (
+                self._emit_inputs_for_consts
+                and not getattr(self, "_preserve_local_input_names", False)
+            ):
                 if graph_name not in self.inputs:
                     vi = helper.make_tensor_value_info(
                         graph_name, fuse_dtype_to_onnx(typ["scalar"]), dims
@@ -647,8 +719,10 @@ class GraphContext:
         # that consume constant literals are satisfied by ONNX validation
         # which expects non-produced inputs to be listed as graph inputs.
         try:
-            if qname not in self.inputs and not getattr(
-                self, "_preserve_local_input_names", False
+            if (
+                self._emit_inputs_for_consts
+                and qname not in self.inputs
+                and not getattr(self, "_preserve_local_input_names", False)
             ):
                 vi = helper.make_tensor_value_info(
                     qname, fuse_dtype_to_onnx(tinfo["scalar"]), dims
@@ -686,8 +760,10 @@ class GraphContext:
         # that consume constant literals are satisfied by ONNX validation
         # which expects non-produced inputs to be listed as graph inputs.
         try:
-            if qname not in self.inputs and not getattr(
-                self, "_preserve_local_input_names", False
+            if (
+                self._emit_inputs_for_consts
+                and qname not in self.inputs
+                and not getattr(self, "_preserve_local_input_names", False)
             ):
                 vi = helper.make_tensor_value_info(
                     qname, fuse_dtype_to_onnx(tinfo["scalar"]), dims
@@ -928,11 +1004,6 @@ class GraphContext:
         opset_imports = []
         for domain, ver in tuples:
             opset_imports.append(helper.make_opsetid(domain, int(ver)))
-        try:
-            if getattr(model, "ir_version", 0) and int(model.ir_version) > 11:
-                model.ir_version = 11
-        except Exception:
-            pass
 
         graph_name = self.scope_display or self.name
         # preserve SSA form. This is conservative and primarily prevents
@@ -956,6 +1027,37 @@ class GraphContext:
             graph.doc_string = self.graph_doc_string
 
         model = helper.make_model(graph, opset_imports=opset_imports)
+        # determine minimal IR version required for the target opset.  ONNX
+        # teams provide a mapping in opset_utils; we default to 8 if unknown.
+        try:
+            from src.util.opset_utils import compute_opset_imports
+            # compute_opset_imports already caps to SAFE_MAX_OPSET; use the
+            # first entry (core opset) to infer IR requirement
+            core_opset = int(tuples[0][1]) if tuples else int(default_opset)
+            # minimal IR versions derived from ONNX changelog/spec; keep
+            # this table simple and update as ONNX evolves.
+            OPSET_TO_IR = {
+                1: 1,
+                6: 3,
+                7: 3,
+                8: 3,
+                9: 4,
+                10: 5,
+                11: 6,
+                12: 7,
+                13: 8,
+                14: 9,
+                15: 10,
+                16: 11,
+                17: 12,
+                18: 13,
+                19: 14,
+                20: 15,
+            }
+            model.ir_version = OPSET_TO_IR.get(core_opset, 8)
+        except Exception:
+            # best-effort: ignore if import or mapping fails
+            pass
 
         # Build emitted metadata using shared helper (centralized validation & merging)
         from src.util.graph_metadata import build_emitted_metadata
@@ -985,6 +1087,14 @@ class GraphContext:
             if getattr(self, "_training_info", None):
                 for ti in self._training_info:
                     model.training_info.append(ti)
+        except Exception:
+            pass
+
+        # Append any user-defined FunctionProtos collected during lowering
+        try:
+            for fn in getattr(self, "functions", []):
+                # copy to avoid accidental shared-state modifications
+                model.functions.append(fn)
         except Exception:
             pass
 

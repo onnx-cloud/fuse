@@ -1,7 +1,3 @@
-golden-onnx:
-	@echo "Exporting all examples/golden/*.fuse to tmp/onnx/*.onnx ..."
-	$(PY) scripts/golden_onnx_export.py
-	@echo "✅ Golden ONNX export complete."
 # Makefile for common tasks
 UV ?= python -m uv
 PY ?= python
@@ -89,11 +85,17 @@ setup:
 	$(UV) pip install -e ".[dev]"
 
 # Default install: core requirements and wheel
-install: build test
+install: build
 	@echo "Installing core requirements and package wheel using uv"
 	$(UV) pip install --upgrade pip setuptools wheel || true
 	$(UV) pip install -r requirements.txt --no-deps
 	$(UV) pip install dist/*.whl
+
+# Build a standalone CLI executable (PyInstaller)
+.PHONY: cli
+cli: install
+	@echo "Building CLI executable (requires PyInstaller)"
+	./scripts/build_exe.sh
 
 # Optional: install PyTorch-related dependencies
 .PHONY: pytorch
@@ -113,18 +115,14 @@ test: ensure-venv
 # Build the package (wheel)
 build:
 	@echo "Building wheel..."
+	@rm -rf dist/*
 	./scripts/build_wheel.sh
 
-# Gold: run full test-suite then build artifacts
 .PHONY: onnx-ops
+
 onnx-ops:
 	@echo "Updating ONNX operator catalog (ONNX_OPS.json)..."
 	@$(PY) -m scripts.update_onnx_ops --output ONNX_OPS.json
-
-.PHONY: ops
-ops:
-	@echo "Generating operator catalog (OPS.json)..."
-	@$(PY) -m scripts.supported_ops --output OPS.json
 
 # Ensure dev deps are available for trace builds too
 gold: setup
@@ -195,11 +193,6 @@ test-all:
 # Development setup target
 dev: setup dev-install
 	@echo "Development environment prepared. Activate with: source .venv/bin/activate"
-
-# Backwards-compatible dev-install target (some automation depends on this name)
-.PHONY: dev-install
-dev-install:
-	@$(MAKE) setup
 
 # Build/package flow (clean + build + tests)
 package: clean build test

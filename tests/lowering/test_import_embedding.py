@@ -16,17 +16,19 @@ def test_bin_import_embedding(tmp_path):
 
     # Create a .fuse source that imports the bin file
     src_fuse = tmp_path / "model.fuse"
+    from src.util.project_version import get_project_version
+    version = get_project_version()
     src_fuse.write_text(
-        """
-@fuse 0.7
+        f"""
+@fuse {version}
 @opset onnx 18
-@version 0.7.0
+@version {version}
 @domain jupyter.cookbook
 const WEIGHTS: f32[2,2] = @import("weights.bin", offset=0)
-node apply(x: f32[2]) -> f32[2] {
+node apply(x: f32[2]) -> f32[2] {{
   y = MatMul(x, WEIGHTS)
   y
-}
+}}
 """
     )
 

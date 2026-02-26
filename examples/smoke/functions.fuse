@@ -1,0 +1,13 @@
+@fuse 0.7
+@opset onnx 18
+@domain examples.smoke
+
+# top‑level function + graph invocation
+
+fn double(x: f32[1]) -> f32[1] {
+  y = Add(x, x)
+}
+
+graph functions(x: f32[1]) -> f32[1] {
+  out = double(x)
+}

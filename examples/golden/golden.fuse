@@ -103,7 +103,7 @@ graph gold_latent(x_img: Img, x_txt: Txt) -> LatentFull {
 @proof graph gold_test_latent() {
   x_img: Img = RandomUniform()
   x_txt: Txt = RandomUniform()
-  out = multi_modal_latent(x_img, x_txt)
+  out = gold_latent(x_img, x_txt)
   assert Shape(out) == [1,256]
 }
 

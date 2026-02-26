@@ -1,0 +1,13 @@
+@fuse 0.7
+@domain examples.smoke
+
+# scan example: cumulative sum over vector
+
+graph simple_scan(xs: f32[4]) -> f32[4] {
+  out = scan(xs, 0.0) {
+    # args: x, state
+    y = Add(state, x);
+    return (true, y)
+  }
+  out
+}

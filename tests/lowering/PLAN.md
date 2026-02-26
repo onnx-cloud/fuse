@@ -14,7 +14,7 @@ Scope
 Approach
 
 - Use small source inputs and in-memory lowering; avoid filesystem writes when possible.
-- Snapshot important graph-level properties: fn counts, initializer shapes, op types, and deterministic fn names.
+- Snapshot important graph-level properties: node counts, initializer shapes, op types, and deterministic node names.
 - Include negative tests for unsupported lowering constructs and informative errors.
 
 Fixtures & DI

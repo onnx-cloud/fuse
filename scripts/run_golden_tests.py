@@ -13,25 +13,19 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Ensure project root is on sys.path so `src` can be imported when running this
-# script directly (e.g., when invoked by a test using subprocess.run).
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# ensure repo root is on sys.path before importing helpers
+import sys
+import pathlib
+_root = pathlib.Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
-# Ensure we run using the project's venv Python when present
-try:
-    import os
-    import sys as _sys
-    _venv_py = ROOT / ".venv" / "bin" / "python"
-    if _venv_py.exists():
-        try:
-            if Path(_sys.executable).resolve() != _venv_py.resolve():
-                os.execv(str(_venv_py), [str(_venv_py)] + _sys.argv)
-        except Exception:
-            pass
-except Exception:
-    pass
+# bootstrap environment (sys.path + virtualenv re-exec)
+from scripts.script_utils import bootstrap_script
+bootstrap_script()
+
+# we still compute ROOT for later use
+ROOT = Path(__file__).resolve().parents[1]
 
 from src.cli.helpers import parse_fuse_file
 from src.testing import run_fuse_tests

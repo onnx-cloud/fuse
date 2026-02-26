@@ -1,6 +1,9 @@
 import subprocess
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def test_golden_export_layout_respects_domain_and_version(tmp_path: Path):
@@ -22,7 +25,10 @@ def test_golden_export_layout_respects_domain_and_version(tmp_path: Path):
 
     # Run script
     python_bin = Path(sys.executable)
-    proc = subprocess.run([str(python_bin), str(script), "--process-file", str(src), "--out-dir", str(out_dir)], capture_output=True, text=True)
+    cmd = [str(python_bin), str(script), "--process-file", str(src), "--out-dir", str(out_dir)]
+    logger.debug("running %s", cmd)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    logger.debug("returncode %d stderr=%s stdout=%s", proc.returncode, proc.stderr, proc.stdout)
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
     # Find emitted ONNX files (recursively)

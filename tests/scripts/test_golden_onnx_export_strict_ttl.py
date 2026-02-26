@@ -1,6 +1,9 @@
 import subprocess
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def test_golden_export_fails_with_ttl_strict(tmp_path: Path):
@@ -30,7 +33,10 @@ def test_golden_export_fails_with_ttl_strict(tmp_path: Path):
         venv_py = repo_root / ".venv" / "bin" / "python"
         if venv_py.exists():
             python_bin = venv_py
-    proc = subprocess.run([str(python_bin), str(script), "--process-file", str(p), "--out-dir", str(out_dir), "--ttl-strict"], capture_output=True, text=True)
+    cmd = [str(python_bin), str(script), "--process-file", str(p), "--out-dir", str(out_dir), "--ttl-strict"]
+    logger.debug("running %s", cmd)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    logger.debug("returncode %d stderr=%s stdout=%s", proc.returncode, proc.stderr, proc.stdout)
 
     # Script should exit with non-zero when TTL strict mode rejects metadata
     assert proc.returncode != 0

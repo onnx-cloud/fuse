@@ -14,7 +14,7 @@
 
 ## Lowering robustness & regressions (medium priority) ⚠️
 - Add regression tests that cover these real-world edge cases found during work:
-  - Inline-lambda deduplication (ensure identical lambdas generate the same helper fn name and behave deterministically).
+  - Inline-lambda deduplication (ensure identical lambdas generate the same helper node name and behave deterministically).
   - Loop subgraph initializer handling (ensure initializers do not become extra positional inputs when `_preserve_local_input_names` is set).
   - Output ordering preservation for nested GraphProto (ensure helper lowering doesn't reorder outputs and mismatch expected positional outputs).
 - Deduplicate generated helper functions across modules (global dedup) to minimize emitted subgraphs for large codebases.

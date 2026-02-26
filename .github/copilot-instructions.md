@@ -8,7 +8,8 @@ Quick reference
 - See `examples/golden/` and `jupyter/cookbook/` (use `./scripts/run_examples.sh --validate`).
 - Changelog: `CHANGELObinG.md` (recent changes, important notes).
 - no backward-compatiblity and deprecation messages.
-- ALWAYS run your tests / scripts / python using .venv: `python -m venv .venv && source .venv/bin/activate && pytest -v tests/`
+- ALWAYS run your tests / scripts / python using `./.venv/bin/python`
+- and/or use `make setup` to setup the development environment.
 
 Big picture
 - Fuse is a small cognitive compiler that lowers to ONNX via these stages: Source → AST → Resolved AST → Typed/shape-checked IR → ONNX → .onnx.
@@ -63,7 +64,7 @@ When changing code, prefer small, well-scoped PRs and follow this checklist:
 1. Preserve determinism (don't change emitted model ordering or names without justification).
 2. Add focused tests (unit for logic; golden/integration for emitted ONNX bytes if relevant).
 3. Use `name_allocator` or `GraphContext` helpers to keep emitted names deterministic in tests.
-4. Run `make test-all` → `make gold` locally before submitting PR.
+4. Run `make test-lowering` → `make gold` locally before submitting PR.
 5. Use `./tmp/` for any temporary files or debugging outputs. don't use `/tmp`
 > If any section is unclear or you'd like examples for writing a lowering test or a golden test, tell me which part to expand (parsing, lowering, imports, training metadata, or CI). ✨
 

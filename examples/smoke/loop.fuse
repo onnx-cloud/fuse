@@ -1,0 +1,16 @@
+@fuse 0.7
+@domain examples.smoke
+
+# simple loop adding integers
+
+graph simple_loop(n: i64) -> i64 {
+  i = 0
+  sum = 0
+  out = loop(i, true, sum) {
+    cond = Less(i, n);
+    sum2 = Add(sum, i);
+    i2 = Add(i, 1);
+    return (cond, i2, sum2)
+  }
+  out
+}

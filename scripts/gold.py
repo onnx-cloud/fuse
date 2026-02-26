@@ -13,24 +13,17 @@ import subprocess
 import sys
 from typing import List, Tuple
 
-# Ensure we run using the project's virtualenv Python (if present). This avoids accidental
-# use of the system `python` when developers forget to activate the venv.
-try:
-    import os
-    import sys
-    from pathlib import Path
+# ensure repository root is on sys.path so we can import helper modules
+import sys
+import pathlib
+_root = pathlib.Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
-    _here = Path(__file__).resolve().parents[1]
-    _venv_py = _here / ".venv" / "bin" / "python"
-    if _venv_py.exists():
-        try:
-            if Path(sys.executable).resolve() != _venv_py.resolve():
-                os.execv(str(_venv_py), [str(_venv_py)] + sys.argv)
-        except Exception:
-            # If re-exec fails for any reason, continue with current interpreter
-            pass
-except Exception:
-    pass
+# perform standard script initialization (add repo root to sys.path,
+# re-exec inside virtualenv if present)
+from scripts.script_utils import bootstrap_script
+bootstrap_script()
 
 
 def run(cmd: List[str], name: str, trace: bool) -> None:
@@ -69,7 +62,7 @@ def run(cmd: List[str], name: str, trace: bool) -> None:
 
 STEPS: List[Tuple[str, List[str]]] = [
     ("onnx-ops", [sys.executable, "-m", "scripts.update_onnx_ops", "--output", "ONNX_OPS.json"]),
-    ("golden-onnx", [sys.executable, "-m", "scripts.golden_onnx_export", "--ttl", "--dot", "--metrics", "--md"]),
+    ("onnx", [sys.executable, "-m", "scripts.golden_onnx_export", "--ttl", "--dot", "--metrics", "--md"]),
     ("test", [sys.executable, "-m", "pytest", "-q"]),
     ("build", ["./scripts/build_wheel.sh"]),
     ("benchmark", [sys.executable, "-m", "scripts.benchmark_fuse_vs_py", "--out", "benchmark"]),

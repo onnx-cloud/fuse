@@ -10,6 +10,17 @@ import os
 import re
 from pathlib import Path
 from typing import Optional
+import warnings
+
+
+def _get_domain_from_meta(meta: dict) -> str | None:
+    if not isinstance(meta, dict):
+        return None
+    dom = meta.get("domain")
+    if dom is None and "module" in meta:
+        warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
+        dom = meta.get("module")
+    return dom
 
 import onnx
 
@@ -94,8 +105,8 @@ def artifact_path_for(
             fname = f"{fname}--{_sanitize_segment(variant)}"
         return str(Path(base) / f"{fname}.onnx")
 
-    # Domain: prefer explicit metadata keys "module" or "domain", fallback to model.domain
-    domain = meta.get("module") or meta.get("domain")
+    # Domain: prefer explicit metadata keys (canonical 'domain', legacy 'module').
+    domain = _get_domain_from_meta(meta) or meta.get("domain")
     if not domain and model is not None:
         domain = getattr(model, "domain", None)
     if not domain:

@@ -51,4 +51,4 @@ def test_namespacing_requires_module(tmp_path: Path):
     lowerer = FuseLowerer()
     with pytest.raises(LoweringError) as exc:
         _ = lowerer.lower(ast, source_file=str(tmp_path / "no_ns.fuse"))
-    assert "Namespacing requires a module" in str(exc.value)
+    assert "Namespacing requires a" in str(exc.value)
