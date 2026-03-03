@@ -11,25 +11,10 @@ from typing import Any, Dict
 class NormalizationPass:
     """Flatten syntactic sugar such as lambdas, imports, and type aliases.
 
-    The current implementation performs a minimal rewrite: any metadata
-    declaration named ``module`` is renamed to ``domain`` with a deprecation
-    warning.  Future passes may normalize lambdas, expand imports, etc.
+    Future passes may normalize lambdas, expand imports, etc.
     """
 
     def run(self, ast: Any) -> Any:
-        import warnings
-
-        # handle list-of-declarations style AST
-        if isinstance(ast, list):
-            for entry in ast:
-                if (
-                    isinstance(entry, dict)
-                    and entry.get("type") == "meta"
-                    and entry.get("name") == "module"
-                ):
-                    entry["name"] = "domain"
-                    import warnings
-                    warnings.warn("@module metadata is deprecated; use @domain instead")
         return ast
 
 

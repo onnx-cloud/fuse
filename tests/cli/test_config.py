@@ -1,7 +1,5 @@
 import json
-from pathlib import Path
 
-import pytest
 
 
 def test_config_merge_applies(tmp_path, monkeypatch):

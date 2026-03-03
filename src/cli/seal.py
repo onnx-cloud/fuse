@@ -12,7 +12,6 @@ except Exception:  # pragma: no cover - optional fast path
 import hashlib
 
 import onnx
-from onnx import helper
 from onnx import numpy_helper
 
 

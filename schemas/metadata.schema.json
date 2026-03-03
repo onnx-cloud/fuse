@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fuse Model Metadata Schema",
+  "description": "JSON Schema for ONNX model metadata created by Fuse compiler.",
+  "type": "object",
+  "properties": {
+    "fuse": {
+      "type": "string",
+      "description": "Fuse version constraint (e.g., '0.7.2' or '0.7.x').",
+      "pattern": "^\\d+(\\.\\d+){0,2}(\\.\\*)?$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Model semantic version (MAJOR.MINOR.PATCH)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "ONNX operator domain for exported functions."
+    },
+    "trainables": {
+      "type": "object",
+      "description": "Map of trainable parameter names (boolean or dict with metadata).",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "boolean" },
+          {
+            "type": "object",
+            "properties": {
+              "trainable": { "type": "boolean" },
+              "dtype": { "type": "string" },
+              "shape": { "type": "array" }
+            }
+          }
+        ]
+      }
+    },
+    "training_config": {
+      "type": "object",
+      "description": "Training configuration including optimizer and loss settings.",
+      "properties": {
+        "optimizer": {
+          "type": "string",
+          "description": "Name or type of optimizer (SGD, Adam, etc.)"
+        },
+        "loss": {
+          "type": "string",
+          "description": "Loss function type"
+        },
+        "learning_rate": {
+          "anyOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        },
+        "algorithm_graph": {
+          "type": "object",
+          "description": "Gradient computation graph specification"
+        }
+      }
+    },
+    "fuse.training": {
+      "type": "object",
+      "description": "Module-level training configuration (same structure as training_config)."
+    },
+    "fuse.inputs": {
+      "type": "object",
+      "description": "Input-level metadata and annotations.",
+      "additionalProperties": true
+    },
+    "fuse.outputs": {
+      "type": "object",
+      "description": "Output-level metadata and annotations.",
+      "additionalProperties": true
+    },
+    "fuse.asserts": {
+      "type": "array",
+      "description": "List of assertion messages from @assert directives.",
+      "items": { "type": "string" }
+    },
+    "external_files": {
+      "type": "array",
+      "description": "List of external tensor files (for large weights).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": { "type": "string", "description": "Source file path" },
+          "dest": { "type": "string", "description": "Destination path in output" },
+          "init_name": { "type": "string", "description": "Initializer name" }
+        },
+        "required": ["src"]
+      }
+    },
+    "id": {
+      "type": "string",
+      "description": "Model identifier (IRI or CURIE format).",
+      "pattern": "^(https?://|[A-Za-z_][A-Za-z0-9_\\-]*:)"
+    },
+    "variant": {
+      "type": "string",
+      "description": "Data type variant (fp32, int8, u8, f16, etc.)."
+    },
+    "persistent": {
+      "type": "object",
+      "description": "Persistent (non-trainable) parameters.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "fuse": "0.7.2",
+      "version": "1.0.0",
+      "domain": "mymodel",
+      "trainables": {
+        "encoder/weights": true,
+        "encoder/bias": false,
+        "decoder/weights": { "trainable": true, "dtype": "float32" }
+      },
+      "training_config": {
+        "optimizer": "Adam",
+        "learning_rate": 0.001,
+        "loss": "CrossEntropy"
+      },
+      "fuse.asserts": [
+        "Shape mismatch detected",
+        "Batch size must be positive"
+      ]
+    }
+  ]
+}

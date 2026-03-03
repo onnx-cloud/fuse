@@ -387,11 +387,6 @@ class FuseTransformer(Transformer):
         # "domain" key.  Historically we used "module"; continue accepting
         # the old form in the parser for backwards compatibility but record
         # the new key so downstream logic can treat domains uniformly.
-        # emit a deprecation warning at parse time so callers using the parser
-        # can be made aware of the change (tests rely on this behavior).
-        import warnings
-
-        warnings.warn("'@module' metadata is deprecated; use '@domain' instead", DeprecationWarning)
         return {"type": "meta", "name": "domain", "value": str(name)}
 
     def meta_id(self, value):
@@ -618,42 +613,50 @@ class FuseTransformer(Transformer):
                 out.append(str(c))
         return out
 
-    def ret_annot(self, typ, *meta):
+    def ret_annot(self, *args):
         # Normalize return annotations. Support both unnamed forms
         # `-> (type, type)` and named forms `-> (name: type, name2: type)`.
+        # Separate types from metadata
+        typ_list = []
+        meta = []
+        for arg in args:
+            if isinstance(arg, dict):
+                meta.append(arg)
+            else:
+                typ_list.append(arg)
+        typ = typ_list if len(typ_list) > 1 else (typ_list[0] if typ_list else None)
+        
         try:
             from lark import Token, Tree
 
-            if isinstance(typ, Tree):
-                # If it's a single child, it may be a lone `type_expr`.
-                if len(typ.children) == 1 and not isinstance(
-                    typ.children[0], Tree
-                ):
-                    typ = typ.children[0]
-                else:
-                    items = []
-                    for c in typ.children:
-                        if isinstance(c, Tree):
-                            # ret_item: either `IDENT ":" type_expr` or just `type_expr`
-                            if (
-                                len(c.children) == 2
-                                and isinstance(c.children[0], Token)
-                                and isinstance(c.children[1], dict)
-                            ):
-                                name = str(c.children[0])
-                                t = dict(c.children[1])
-                                t["name"] = name
-                                items.append(t)
-                            elif len(c.children) == 1:
-                                items.append(c.children[0])
-                            else:
-                                items.append(str(c))
-                        elif isinstance(c, dict):
-                            items.append(c)
-                        else:
-                            items.append(str(c))
-                    typ = items
-            # fallback normalization for singletons
+            # Process Tree objects (ret_item nodes or single type_expr)
+            def process_ret_item(tree_obj):
+                """Extract type from a ret_item Tree."""
+                if not isinstance(tree_obj, Tree):
+                    return tree_obj
+                if tree_obj.data == "ret_item":
+                    # ret_item: either IDENT ":" type_expr  or just type_expr
+                    children = tree_obj.children
+                    if len(children) == 2 and isinstance(children[0], Token):
+                        # Named: IDENT ":" type_expr
+                        name = str(children[0])
+                        t = children[1]
+                        if isinstance(t, dict):
+                            t = dict(t)  # copy
+                            t["name"] = name
+                        return t
+                    elif len(children) == 1:
+                        # Unnamed: just type_expr
+                        return children[0]
+                return tree_obj
+
+            # If typ is a list (multi-return), process each item
+            if isinstance(typ, list):
+                typ = [process_ret_item(t) for t in typ]
+            elif isinstance(typ, Tree):
+                typ = process_ret_item(typ)
+            
+            # Normalize singleton lists
             if isinstance(typ, (list, tuple)) and len(typ) == 1:
                 typ = typ[0]
         except Exception:
@@ -670,6 +673,12 @@ class FuseTransformer(Transformer):
         if merged and isinstance(typ, dict):
             typ = dict(typ)
             typ["meta"] = merged
+        elif merged and isinstance(typ, list):
+            # Apply metadata to all items in multi-return
+            typ = [dict(t) if isinstance(t, dict) else t for t in typ]
+            for t in typ:
+                if isinstance(t, dict):
+                    t["meta"] = merged
         return typ
 
     def _is_param_list(self, value):
@@ -862,7 +871,8 @@ class FuseTransformer(Transformer):
                             if isinstance(iv, dict):
                                 conv[ik] = iv
                             else:
-                                conv[ik] = {"bus": iv}
+                                # Keep scalar values as-is; don't wrap in {"bus": ...}
+                                conv[ik] = iv
                         out.setdefault(k, {}).update(conv)
                     else:
                         out.setdefault(k, {}).update({"persistent": v})

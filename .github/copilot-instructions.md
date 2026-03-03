@@ -14,7 +14,7 @@ Quick reference
 Big picture
 - Fuse is a small cognitive compiler that lowers to ONNX via these stages: Source → AST → Resolved AST → Typed/shape-checked IR → ONNX → .onnx.
 - Design invariants: determinism (same source → identical bytes), stable SSA-style names, params→initializers, consts folded early.
-- **make gold**: Run `make gold` to run golden tests and build the binary after intentional changes.
+- **make gold**: Run `make gold` to compile all `examples/golden` models and verify ONNX outputs (does *not* run the full test suite).  ``make test`` performs all unit tests.
 
 
 ## Big picture & architecture 🧭
@@ -24,7 +24,7 @@ Big picture
 - **GraphContext** centralizes naming, value-types and metadata (e.g., `trainables`), and provides `add_param`, `add_const`, and `build_model()` helpers used by `FuseLowerer`.
 
 ## Project-specific conventions & patterns 📐
-- **Namespacing enforced by default**: When lowering from a file source, an explicit `@domain`/`@domain` meta is required (use CLI `--no-ns` to opt out). See `_prepare_for_lowering` in `FuseLowerer`.
+- **Namespacing enforced by default**: When lowering from a file source, an explicit `@domain` is required.
 - **Params vs Consts**: `param` with a default value is treated as a constant initializer; `const` becomes an initializer. `trainable` flags are serialized into `ModelProto.metadata_props` as `trainables` (stable JSON map).
 - **Imports / Variants**: `@import` declares remote/local ONNX models with `@variant` entries. Import fusion prefixes domains deterministically and wires inputs/outputs. External tensor references (`external_data`) are supported and may be written out via `--externalize`.
 - **Lowering helpers**: inline lambdas are normalized into named functions before lowering to keep lowering deterministic (see `src/ast/normalize_lambdas.py`).
@@ -65,8 +65,8 @@ When changing code, prefer small, well-scoped PRs and follow this checklist:
 2. Add focused tests (unit for logic; golden/integration for emitted ONNX bytes if relevant).
 3. Use `name_allocator` or `GraphContext` helpers to keep emitted names deterministic in tests.
 4. Run `make test-lowering` → `make gold` locally before submitting PR.
-5. Use `./tmp/` for any temporary files or debugging outputs. don't use `/tmp`
-> If any section is unclear or you'd like examples for writing a lowering test or a golden test, tell me which part to expand (parsing, lowering, imports, training metadata, or CI). ✨
+- All temporary scripts, work files, adhoc tests MUST be in `./tmp/` (not `/tmp/`).
+- All plans, reviews, progress / summary reports MUST be in `./todo/` (not `/`).
 
 *Last note:* keep edits compact, add tests for every behavioral change, and prefer adding examples under `./examples/fuse/` for language-level features.
 

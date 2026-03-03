@@ -88,21 +88,40 @@ class OpsLowerer:
                 if n is not None:
                     lowered_args.append(n)
                     lowered_types.append(t)
-            # create output name
-            output_name = out_name or ctx._next_node_name(op)
-            node_name = ctx.add_node(op, lowered_args, [output_name])
+            # create output name(s)
+            ret_typ = decl.get("ret_type")
+            output_names = []
+            resolved_types = []
+            
+            if isinstance(ret_typ, list):
+                for i, rt in enumerate(ret_typ):
+                    oname = (out_name + f"_{i}") if out_name else ctx._next_node_name(f"{op}_out{i}")
+                    output_names.append(oname)
+                    resolved = self._lowerer._resolve_type(rt) or rt
+                    ctx.value_types[oname] = as_tensor_type(resolved)
+                    resolved_types.append((oname, ctx.value_types[oname]))
+            else:
+                oname = out_name or ctx._next_node_name(op)
+                output_names.append(oname)
+                if ret_typ is not None:
+                    resolved = self._lowerer._resolve_type(ret_typ) or ret_typ
+                    ctx.value_types[oname] = as_tensor_type(resolved)
+                resolved_types = [(oname, ctx.value_types.get(oname))]
+                
+            ctx.add_node(op, lowered_args, output_names)
+            
             # ensure call node uses the same domain as the FunctionProto
             func_dom = decl.get("_func_domain") or _get_model_domain(ctx) or "fuse.local"
             try:
                 ctx.nodes[-1].domain = func_dom
             except Exception:
                 pass
-            # try to infer output type from declaration
-            ret_typ = decl.get("ret_type")
-            if ret_typ is not None:
-                resolved = self._lowerer._resolve_type(ret_typ) or ret_typ
-                ctx.value_types[output_name] = as_tensor_type(resolved)
-            return output_name, ctx.value_types.get(output_name)
+                
+            if len(output_names) > 1:
+                env["__last_multi_return__"] = resolved_types
+                return output_names[0], resolved_types[0][1]
+            else:
+                return output_names[0], ctx.value_types.get(output_names[0])
 
         # If the call target is an imported function, lower it.
         from src.onnx_schema import normalize_domain_and_op
@@ -254,6 +273,8 @@ class OpsLowerer:
                 parent_prefix = getattr(ctx, "scope_prefix", "parent")
                 sub_ctx.scope_prefix = f"{parent_prefix}__{decl.get('name')}"
                 sub_ctx._preserve_local_input_names = True
+                # clear metadata to avoid requiring @fuse in subgraphs
+                sub_ctx.model_metadata = {}
                 self._lowerer._lower_function(decl, sub_ctx)
                 g = sub_ctx.build_model().graph
                 if op_type == "Loop" and aname == "body":
@@ -981,6 +1002,8 @@ class OpsLowerer:
                 parent_prefix = getattr(ctx, "scope_prefix", "parent")
                 sub_ctx.scope_prefix = f"{parent_prefix}__{decl.get('name')}"
                 sub_ctx._preserve_local_input_names = True
+                # clear metadata to avoid requiring @fuse in subgraphs
+                sub_ctx.model_metadata = {}
                 self._lowerer._lower_function(decl, sub_ctx)
                 g = sub_ctx.build_model().graph
                 if op_type == "Loop" and aname == "body":
@@ -1421,6 +1444,16 @@ class OpsLowerer:
         sub_ctx._preserve_local_input_names = True
         sub_ctx.scope_prefix = f"{getattr(ctx, 'scope_prefix', 'parent')}__loop_body"
         
+        # propagate outer environment names as explicit inputs first so
+        # any references to external variables (e.g. loop limit 'n') become
+        # declared graph inputs.  We include type info when available.
+        for var, val in env.items():
+            if isinstance(val, str) and val:
+                try:
+                    sub_ctx.add_param({"name": val, "type": types.get(var)})
+                except Exception:
+                    pass
+
         # Add inputs to sub-context with their types.  Rather than using a
         # fixed set of names we attempt to derive reasonable identifiers from
         # the loop AST or the incoming values.  The body syntax implicitly
@@ -1649,6 +1682,23 @@ class OpsLowerer:
         """Lower an if/else block body to GraphProto."""
         sub_ctx = GraphContext(name="__if_body", opset=ctx.opset)
         sub_ctx._preserve_local_input_names = True
+        # propagate outer environment names as explicit graph inputs so the
+        # resulting GraphProto contains the needed input definitions.  We
+        # copy both name and type where available.  This is important for
+        # If/Loop bodies which are lowered independently but still reference
+        # values from the parent context.
+        for var, val in env.items():
+            if isinstance(val, str) and val:  # skip empty names
+                p = {"name": val}
+                t = types.get(var)
+                if t is not None:
+                    # include type information if known
+                    p["type"] = t
+                try:
+                    sub_ctx.add_param(p)
+                except Exception:
+                    # ignore duplicates or invalid entries
+                    pass
         
         if body and body.get("type") == "block":
             stmts = body.get("stmts", [])

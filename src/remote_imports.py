@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import onnx
 from src.graph_context import GraphContext
-from src.security import validate_import_url, safe_path
+from src.security import validate_import_url
 from src.errors import E003_ImportNotFound, E051_InvalidONNXModel
 
 
@@ -64,9 +64,8 @@ class RemoteImportManager:
 
     def fuse_import(
         self,
-        ctx: GraphE003_ImportNotFound(
-                import_decl.get("name", "unknown"),
-                variant=variant_name
+        ctx: GraphContext,
+        import_decl: Dict[str, Any],
         variant_name: Optional[str] = None,
     ):
         variants = import_decl.get("variants") or []
@@ -85,7 +84,7 @@ class RemoteImportManager:
 
         if isinstance(url_or_path, str) and url_or_path.startswith("http"):
             local_path = self.cache.fetch(url_or_path)
-        else# Security: validate local file path
+        else: # Security: validate local file path
             local_path = Path(url_or_path)
             if not local_path.exists():
                 raise E003_ImportNotFound(import_decl["name"], variant=variant_name)
@@ -93,8 +92,7 @@ class RemoteImportManager:
         try:
             model = onnx.load(str(local_path))
         except Exception as e:
-            raise E051_InvalidONNXModel(str(local_path), f"Load failed: {e}"
-        model = onnx.load(str(local_path))
+            raise E051_InvalidONNXModel(str(local_path), f"Load failed: {e}")
         alias = import_decl["alias"]
 
         for node in model.graph.node:

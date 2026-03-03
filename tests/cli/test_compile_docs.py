@@ -16,8 +16,8 @@ def _capture_stdout(func, *args, **kwargs):
 
 
 def test_compile_docs_invokes_cmd_docs(monkeypatch):
-    # Simulate cmd_onnx returning a compiled ONNX model path
-    def fake_cmd_onnx(files, **kwargs):
+    # Simulate cmd_compile returning a compiled ONNX model path
+    def fake_cmd_compile(files, **kwargs):
         return [(files[0], '/tmp/fake_model.onnx', None)]
 
     called = {}
@@ -26,7 +26,7 @@ def test_compile_docs_invokes_cmd_docs(monkeypatch):
         called['args'] = (files, kwargs)
         return [(files[0], ['out1'], None)]
 
-    monkeypatch.setattr('src.cli.cli_commands.cmd_onnx', fake_cmd_onnx)
+    monkeypatch.setattr('src.cli.cli_commands.cmd_compile', fake_cmd_compile)
     monkeypatch.setattr('src.cli.cli_commands.cmd_docs', fake_cmd_docs)
     # ensure file expansion returns our provided names (avoid filesystem dependency)
     monkeypatch.setattr('src.cli.cli_helpers.find_fuse_files', lambda v: list(v))

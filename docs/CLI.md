@@ -283,26 +283,6 @@ fuse inspect [-h] [-f [FILES ...]] [-o OUT] [--dot] [--ttl]
 fuse inspect -f model.onnx -o ./inspect_out --dot --plots
 ```
 
-### `golden`
-
-Run golden tests against Fuse source files with `@golden` blocks.
-
-```bash
-fuse golden [-h] [-f [FILES ...]] [--quiet] [--fail-fast]
-```
-
-| Option | Description |
-|--------|-------------|
-| `-f, --files` | Files or glob patterns to include |
-| `--quiet` | Suppress per-file output |
-| `--fail-fast` | Stop on first failure |
-
-**Example:**
-```bash
-fuse golden -f examples/golden/*.fuse
-fuse golden -f examples/golden/*.fuse --fail-fast
-```
-
 ### `models`
 
 Manage and publish Fuse models to a local zoo.

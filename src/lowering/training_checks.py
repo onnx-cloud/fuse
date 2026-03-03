@@ -50,7 +50,7 @@ def check_training_model(model: onnx.ModelProto) -> Dict[str, List[Dict[str,Any]
     # Collect model outputs and node op_types
     outputs = {o.name for o in model.graph.output}
     nodes = list(model.graph.node)
-    op_types = {n.op_type for n in nodes}
+    {n.op_type for n in nodes}
 
     # Helper: accept broadcasted state shapes for conv-like params and special rules
     def _shapes_compatible(p_shape, s_dims, param_name=None):
@@ -61,11 +61,9 @@ def check_training_model(model: onnx.ModelProto) -> Dict[str, List[Dict[str,Any]
             return True
 
         # Load optional shape rules from schemas/training_param_shape_rules.json
+        from src.util.config import load_schema
         try:
-            from pathlib import Path
-            import json as _json
-            rules_path = Path(__file__).resolve().parents[1].joinpath("schemas/training_param_shape_rules.json")
-            rules = _json.loads(rules_path.read_text()) if rules_path.exists() else {"rules": []}
+            rules = load_schema("training_param_shape_rules", {"rules": []})
         except Exception:
             rules = {"rules": []}
 

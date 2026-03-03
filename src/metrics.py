@@ -17,9 +17,7 @@ YAML-like string for CLI display.
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple, Any
-from math import prod
 
-from src.parser import fuse_parser
 from src.graph_context import as_tensor_type
 
 # Defer importing CLI helpers to runtime to avoid import-time cycles.
@@ -407,7 +405,6 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
         ops[n.op_type] = ops.get(n.op_type, 0) + 1
 
         node_id = _node_identifier(n, idx)
-        inputs = []
         input_shapes = {}
         input_bytes = 0
         for nm in n.input:
@@ -466,10 +463,9 @@ def compute_metrics_for_file(path: str) -> Dict[str, Any]:
                 y = n.output[0] if n.output else None
                 yshape = vmap.get(y, (None, None))[0] if y else None
                 # group attr
-                group = 1
                 for a in n.attribute:
                     if a.name == "group":
-                        group = int(a.i)
+                        int(a.i)
                 if xshape and wshape and yshape:
                     N = xshape[0]
                     Cout = wshape[0]

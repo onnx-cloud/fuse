@@ -6,13 +6,11 @@
 @version 0.7.0
 @domain jupyter.cookbook
 
-# Demonstrates @golden which exports the model `examples.golden`
-
 fn id(x: f32[3]) -> f32[3] {
   x
 }
 
-@golden @proof golden() {
+@proof golden() {
   sample = [1.0, 2.0, 3.0]
   out = id(sample)
   assert out == [1.0, 2.0, 3.0]

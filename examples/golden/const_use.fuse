@@ -7,6 +7,6 @@
 
 const two: i32[1] = [2]
 
-graph test_constant() -> i32[1] {
+graph const_use() -> i32[1] {
   two
 }

@@ -7,6 +7,10 @@
 @domain examples.golden
 @meta author = "onnx.cloud"
 
+# -----------------------------------------
+# 1. Static branch (compile-time eliminated)
+# -----------------------------------------
+
 fn maybe_static(x: f32[1]) -> f32[1] {
   static if true {
     x
@@ -15,10 +19,56 @@ fn maybe_static(x: f32[1]) -> f32[1] {
   }
 }
 
+# -----------------------------------------
+# 2. Dynamic branch (lowers to ONNX If)
+#    NOTE: cond must be bool[] (scalar tensor)
+# -----------------------------------------
+
 fn dynamic_if(x: f32[1], cond: bool) -> f32[1] {
   if cond {
     x
   } else {
     x
   }
+}
+
+fn if_stmt(x: f32) -> f32 {
+  out = if (true) {
+    Add(x, 1.0)
+  } else {
+    Sub(x, 1.0)
+  }
+  out
+}
+
+fn if_expr(x: f32) -> f32 {
+  y = if (Greater(x, 0.0)) { x } else { Mul(x, -1.0) };
+  y
+}
+
+# -----------------------------------------
+# 3. Element-wise selection (lowers to ONNX Where)
+# -----------------------------------------
+
+fn select_where(cond: bool[1], x: f32[1], y: f32[1]) -> f32[1] {
+  Where(cond, x, y)
+}
+
+# -----------------------------------------
+# Executable graph
+# -----------------------------------------
+
+graph control_flow(
+  x: f32[1],
+  x_scalar: f32,
+  cond_scalar: bool,
+  cond_tensor: bool[1]) -> (f32[1], f32[1], f32, f32, f32[1]) {
+
+  y1 = maybe_static(x)
+  y2 = dynamic_if(y1, cond_scalar)
+  y3 = if_stmt(x_scalar)
+  y4 = if_expr(x_scalar)
+  y5 = select_where(cond_tensor, x, y2)
+
+  return y1, y2, y3, y4, y5
 }

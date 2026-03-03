@@ -28,7 +28,8 @@ To run a Fuse file, install the python package and use the CLI:
 python -m fuse --input your_model.fuse --output model.onnx
 ```
 
-Tests can be run with `make test` or `make gold` for golden examples.
+Tests can be run with `make test`.  Separately, `make gold` will compile every file in `examples/golden/` via the CLI (optionally tracing with `make gold-trace`) and verify that an ONNX model is produced; it does **not** execute the full test suite.
+
 
 ## Basic Syntax
 
@@ -176,7 +177,7 @@ while i < 5 {
 - Use the SSA naming convention to avoid confusion: each variable is assigned once.
 - Annotate shapes and types to catch errors early.
 - Keep imports deterministic by specifying domains explicitly.
-- Use `make gold` frequently when changing lowering behavior to detect regressions.
+- Use `make gold` frequently when changing lowering behavior to detect regressions in example models.  (Run `make test` separately when you need full coverage.)
 
 ---
 

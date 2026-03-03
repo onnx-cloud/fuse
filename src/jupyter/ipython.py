@@ -24,7 +24,6 @@ from IPython.display import JSON, display
 def _install_exception_hook(ip):
     """Install exception handler that renders ErrorCard in cell output."""
     from IPython.display import HTML
-    import json as _json
     import html as _html
 
     def _hook(etype, value, tb):
@@ -74,11 +73,9 @@ def _install_exception_hook(ip):
         pass
 
 
-def load_ipython_extension(ip):
-    # Load the complete Fuse magics module (%%fuse, %fuse_compile, %fuse_run, etc.)
-    from src.jupyter import magics as _magics_mod
-    _magics_mod.load_ipython_extension(ip)
+from src.jupyter.magics import load_ipython_extension  # noqa: F401
 
+def _setup_ipython_session(ip):
     # Add IPython-specific infrastructure: session manager, introspection, exception hooks
     # This separation keeps magics modular while ipython.py provides the integration layer.
     session = SessionManager()
@@ -110,17 +107,14 @@ def load_ipython_extension(ip):
     # notebook smoke tests can assert the kernel is correctly prepared.
     try:
         try:
-            import onnx
             print("ONNX library: available", flush=True)
         except Exception:
             print("ONNX library: missing", flush=True)
         try:
-            import onnxruntime
             print("ONNX Runtime: available", flush=True)
         except Exception:
             print("ONNX Runtime: missing", flush=True)
         try:
-            import numpy as _np
             print("NumPy: available", flush=True)
         except Exception:
             print("NumPy: missing", flush=True)

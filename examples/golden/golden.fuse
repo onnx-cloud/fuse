@@ -1,49 +1,60 @@
 @fuse 0.7
 @opset onnx 18
 @version 0.7.0
-@domain examples.golden
+@domain examples.golden.clip
 @meta author = "onnx.cloud"
-@meta description = "Two-modality latent model with explicit batch dimensions, file-level sharding, and auto-gathered latent output"
+@meta description = "Grammar-compliant ONNX-only CLIP-style dual encoder with correct token generation"
 
 # -----------------
 # constants
 # -----------------
-const alpha: f16 = 1.0
+
+const VOCAB: i64 = 49152
+const VOCAB_MAX: f32 = 49151.0
 
 # -----------------
 # types
 # -----------------
-type Img        = f32[B,3,128,128]
-type Txt        = f32[B,77,512]
-type Latent     = f32[B,256]          # per-device latent
-type LatentFull = f32[1,256]          # gathered final latent across devices
+
+type Img        = f32[B,3,224,224]
+type Tokens     = i64[B,77]
+type ImgFeat    = f32[B,768]
+type TxtFeat    = f32[B,768]
+type Similarity = f32[B,1]
 
 # -----------------
 # trainable weights
 # -----------------
-@train weight W_img: f32[3,32]
-@train weight b_img: f32[32]
 
-@train weight W_txt: f32[512,64]
+@train weight W_img_proj: f32[3,768]
+@train weight b_img_proj: f32[768]
 
-@train weight W_img_head: f32[32,256]
-@train weight b_img_head: f32[256]
+@train weight W_txt_embed: f32[VOCAB,768]
+@train weight b_txt_embed: f32[768]
 
-@train weight W_txt_head: f32[64,256]
-@train weight b_txt_head: f32[256]
+@train weight W_img_head: f32[768,768]
+@train weight b_img_head: f32[768]
 
-@train weight W_head: f32[512,256]
-@train weight b_fuse_head: f32[256]
+@train weight W_txt_head: f32[768,768]
+@train weight b_txt_head: f32[768]
 
 # -----------------
 # image encoder
 # -----------------
 
-fn image_encoder(x: Img) -> f32[B,32] {
-  # average spatial dimensions H,W -> [B,3]
+fn image_encoder(x: Img) -> ImgFeat {
+
+  # global average pool H,W → [B,3]
   pooled = ReduceMean(x, axes=[2,3], keepdims=0)
-  out = MatMul(pooled, W_img)             # [B,32]
-  out = Add(out, b_img)
+
+  proj = MatMul(pooled, W_img_proj)
+  proj = Add(proj, b_img_proj)
+
+  head = MatMul(proj, W_img_head)
+  head = Add(head, b_img_head)
+
+  out = LpNormalization(head, p=2, axis=1)
+
   out
 }
 
@@ -51,60 +62,65 @@ fn image_encoder(x: Img) -> f32[B,32] {
 # text encoder
 # -----------------
 
-fn text_encoder(x: Txt) -> f32[B,64] {
-  # average token dimension -> [B,512]
-  pooled = ReduceMean(x, axes=[1], keepdims=0)
-  t_out = MatMul(pooled, W_txt)           # [B,64]
-  t_out
-}
+fn text_encoder(tokens: Tokens) -> TxtFeat {
 
-# -----------------
-# latent heads (explicit batch dimension)
-# -----------------
+  # embedding lookup -> [B,77,768]
+  tok = Gather(W_txt_embed, tokens, axis=0)
 
-latent_head_img(feat: f32[B,32]) -> Latent {
-  z = MatMul(feat, W_img_head)            # [B,256]
-  z = Add(z, b_img_head)
-  z
-}
+  tok = Add(tok, b_txt_embed)
 
-fn latent_head_txt(feat: f32[B,64]) -> Latent {
-  z = MatMul(feat, W_txt_head)            # [B,256]
-  z = Add(z, b_txt_head)
-  z
-}
+  # mean pool tokens -> [B,768]
+  pooled = ReduceMean(tok, axes=[1], keepdims=0)
 
-fn latent_fusion(z_img: Latent, z_txt: Latent) -> Latent {
-  # concatenate along feature axis -> [B,512] (use -1 so it works with rank-1 vectors too)
-  concat = Concat(z_img, z_txt, axis=-1)
-  fused = Add(MatMul(concat, W_head), b_fuse_head) # [B,256]
-  fused
-}
+  head = MatMul(pooled, W_txt_head)
+  head = Add(head, b_txt_head)
 
+  out = LpNormalization(head, p=2, axis=1)
 
-# -----------------
-# end-to-end multi-modal latent
-# -----------------
-
-graph gold_latent(x_img: Img, x_txt: Txt) -> LatentFull {
-  i_feat = image_encoder(x_img)           # [B,32]
-  t_feat = text_encoder(x_txt)            # [B,64]
-  z_i = latent_head_img(i_feat)           # [B,256]
-  z_t = latent_head_txt(t_feat)           # [B,256]
-  z_f = latent_fusion(z_i, z_t)           # [B,256]
-  out = Reshape(z_f, [1,256])
   out
 }
 
 # -----------------
-# deterministic test
+# similarity
 # -----------------
 
-@proof graph gold_test_latent() {
-  x_img: Img = RandomUniform()
-  x_txt: Txt = RandomUniform()
-  out = gold_latent(x_img, x_txt)
-  assert Shape(out) == [1,256]
+fn similarity(img: ImgFeat, txt: TxtFeat) -> Similarity {
+
+  prod = Mul(img, txt)
+  score = ReduceSum(prod, axes=[1], keepdims=1)
+
+  score
 }
 
+# -----------------
+# end-to-end CLIP score
+# -----------------
 
+fn clip_score(x_img: Img, x_txt: Tokens) -> Similarity {
+
+  i_feat = image_encoder(x_img)
+  t_feat = text_encoder(x_txt)
+
+  out = similarity(i_feat, t_feat)
+
+  out
+}
+
+# -----------------
+# deterministic proof
+# -----------------
+
+@proof graph golden() {
+
+  # image input
+  x_img: Img = RandomUniform()
+
+  # generate valid integer token ids
+  tmp: f32[B,77] = RandomUniform()
+  tmp = Mul(tmp, VOCAB_MAX)
+  x_txt: Tokens = Cast(tmp, to=i64)
+
+  out = clip_score(x_img, x_txt)
+
+  assert Rank(out) == 2
+}

@@ -1,7 +1,6 @@
 import base64
 import sys
 import types
-import pytest
 
 from src.server import handlers
 from src.server.models import LintRequest, CompileRequest, DecompileRequest

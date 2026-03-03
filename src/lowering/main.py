@@ -666,12 +666,9 @@ class FuseLowerer:
             self._current_module = val
             # always store under the canonical key
             ctx.model_metadata["domain"] = val
-            # keep legacy key too for a short transition period
+            # keep legacy key too for backwards compatibility
             if decl.get("name") == "module":
                 ctx.model_metadata.setdefault("module", val)
-                warnings.warn(
-                    "@module metadata is deprecated; use @domain instead", DeprecationWarning
-                )
 
         if decl.get("name") == "id":
             self._current_module = str(decl.get("value"))
@@ -1272,7 +1269,8 @@ class FuseLowerer:
             if last_value:
                 graph_output_internal = last_value
             else:
-                graph_output_internal = f"{decl['name']}_out"
+                domain = _get_model_domain(ctx) or "fuse"
+                graph_output_internal = f"{domain}.out"
 
         graph_out = ctx.add_output(graph_output_internal, output_type)
 
@@ -1316,17 +1314,36 @@ class FuseLowerer:
                     targets = stmt["let"]
                     expr = stmt["expr"]
                     if isinstance(expr, dict) and expr.get("call"):
+                        # For multi-return calls, lower the call once and distribute outputs
+                        # to avoid redundant inlining.
+                        val, typ = self._lower_expr(expr, ctx, env, types)
+                        multi = env.get("__last_multi_return__")
+                        if multi and len(multi) == len(targets):
+                            # Multi-return call succeeded; assign each output
+                            for i, tgt in enumerate(targets):
+                                nm, t = multi[i]
+                                env[str(tgt)] = nm
+                                if t:
+                                    types[str(tgt)] = t
+                            return None, None
+                        elif multi:
+                            from .utils import LoweringError
+                            raise LoweringError(
+                                f"call returned {len(multi)} values; assignment expects {len(targets)} targets",
+                                source=self._current_source,
+                            )
+                        # Fallback: single-return mismatch; use __call_select__ (legacy behavior)
                         for i, tgt in enumerate(targets):
                             sel_expr = {
                                 "__call_select__": {"call": expr, "idx": i}
                             }
-                            val, typ = self._lower_expr(
+                            v, t = self._lower_expr(
                                 sel_expr, ctx, env, types
                             )
-                            if val is not None:
-                                env[str(tgt)] = val
-                                if typ:
-                                    types[str(tgt)] = typ
+                            if v is not None:
+                                env[str(tgt)] = v
+                                if t:
+                                    types[str(tgt)] = t
                         return None, None
                     tmp = ctx._next_const_name()
                     val, typ = self._lower_expr(

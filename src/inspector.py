@@ -211,13 +211,13 @@ def _write_param_plots(
         plt.ylabel("Count")
         plt.tight_layout()
 
-        out_file = out_dir / f"params.png"
+        out_file = out_dir / "params.png"
         written.append(str(out_file))
         if not dry_run:
             try:
                 plt.savefig(str(out_file), format="png")
             except Exception as e:
-                err = out_dir / f"params.png.error.txt"
+                err = out_dir / "params.png.error.txt"
                 _atomic_write_text(err, str(e))
                 written[-1] = str(err)
         plt.close()

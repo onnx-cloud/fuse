@@ -9,10 +9,9 @@ Provides:
 from __future__ import annotations
 
 import html as _html
-import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -24,7 +23,7 @@ except ImportError:
 
 
 # Type alias for tensor-like objects
-TensorLike = Union[np.ndarray, "torch.Tensor", List, Any]
+TensorLike = Union[np.ndarray, "Any", List, Any]
 
 
 def _to_numpy(tensor: TensorLike) -> np.ndarray:
@@ -47,9 +46,7 @@ def _to_numpy(tensor: TensorLike) -> np.ndarray:
     return np.asarray(tensor)
 
 
-def _format_shape(shape: Tuple[int, ...]) -> str:
-    """Format shape tuple for display."""
-    return "[" + ", ".join(str(d) for d in shape) + "]"
+from src.util.shape_format import format_shape as _format_shape
 
 
 def _format_dtype(dtype) -> str:
@@ -242,12 +239,10 @@ class TensorInspector(TensorView):
         # For small arrays, show all
         if arr.size <= self.max_sample_size:
             sample = arr
-            truncated = False
         else:
             # Show first elements
             flat = arr.flatten()
             sample = flat[:self.max_sample_size].reshape(-1)
-            truncated = True
         
         # Format values
         if arr.dtype.kind == "f":

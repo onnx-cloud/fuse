@@ -1,9 +1,8 @@
+import functools
 import json
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
-import onnx
-from onnx.defs import get_all_schemas
 
 
 class OpCodes:
@@ -63,11 +62,6 @@ class OpCodes:
 
 
 # Singleton cache
-_default = None
-
-
+@functools.lru_cache(maxsize=1)
 def default_opcodes() -> OpCodes:
-    global _default
-    if _default is None:
-        _default = OpCodes()
-    return _default
+    return OpCodes()

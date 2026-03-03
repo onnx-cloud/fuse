@@ -1,7 +1,7 @@
 {
   "fuse": {
     "bytes": 2399,
-    "decl_count": -1,
+    "decl_count": 27,
     "lines": 92,
     "path": "examples/golden/clip.fuse"
   },

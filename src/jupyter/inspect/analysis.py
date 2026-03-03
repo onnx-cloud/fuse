@@ -9,7 +9,10 @@ from __future__ import annotations
 import html as _html
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from .core import TensorView, TensorLike, _to_numpy, _format_shape, _format_dtype, _format_size
 
@@ -97,7 +100,7 @@ def tsne(
         return reducer.fit_transform(arr)
     except ImportError:
         # Fallback to PCA
-        print("Warning: sklearn not available, falling back to PCA")
+        logger.warning("sklearn not available, falling back to PCA")
         return pca(arr, n_components=n_components)
 
 
@@ -136,7 +139,7 @@ def umap_project(
         return reducer.fit_transform(arr)
     except ImportError:
         # Fallback to t-SNE then PCA
-        print("Warning: umap-learn not available, falling back to t-SNE")
+        logger.warning("umap-learn not available, falling back to t-SNE")
         return tsne(arr, n_components=n_components)
 
 
@@ -341,7 +344,7 @@ class ComparisonView:
         bar_width = width / len(counts)
         
         bars = []
-        mid_x = width / 2
+        width / 2
         for i, count in enumerate(counts):
             bar_height = (count / max_count) * (height - 20)
             x = i * bar_width
@@ -376,7 +379,6 @@ class ComparisonView:
         status_color = "#28a745" if self.allclose else "#dc3545"
         status_text = "Match" if self.allclose else "Differ"
         
-        shape_match = "✓" if self.shapes_match else "✗"
         
         diff_svg = self._make_diff_svg()
         

@@ -13,7 +13,7 @@ import os
 import time
 from pathlib import Path
 
-from .introspection import list_ops, op_attributes, op_doc
+from .introspection import list_ops, op_attributes
 from .errors import map_exception
 
 # Initialize rate limit & audit variables to ensure module-level import stability
@@ -71,7 +71,8 @@ def _load_llm_config():
     if not p.exists():
         return {}
     try:
-        return json.loads(p.read_text())
+        from src.util.config import load_schema
+        return load_schema(str(p), force_reload=True)
     except Exception:
         return {}
 
@@ -316,7 +317,6 @@ try:
 
             # Check IPython extension availability
             try:
-                from src.jupyter.ipython import load_ipython_extension
                 checks["fuse_ipython"] = {"ok": True}
             except Exception as e:
                 checks["fuse_ipython"] = {"ok": False, "error": str(e)}
@@ -660,35 +660,7 @@ try:
                 self.set_status(404)
                 self.write(json.dumps({'error': 'engine not found'}))
 
-    def _jupyter_server_extension_paths():
-        return [{"module": "src.jupyter.server"}]
-
-    def load_jupyter_server_extension(nb_app):
-        web_app = nb_app.web_app
-        host_pattern = ".*"
-        base = web_app.settings.get("base_url", "")
-        # Ensure base_url ends with / for proper concatenation
-        if base and not base.endswith("/"):
-            base = base + "/"
-        handlers = [
-            (base + "fuse/api/ops", OpsHandler),
-            (base + "fuse/api/completions", CompletionsHandler),
-            (base + "fuse/api/op_attributes", OpAttributesHandler),
-            (base + "fuse/api/map_error", MapErrorHandler),
-            (base + "fuse/api/health", HealthHandler),
-            (base + "fuse/welcome", WelcomeHandler),
-        ]
-        web_app.add_handlers(host_pattern, handlers)
-        # Also register LLM endpoint
-        web_app.add_handlers(host_pattern, [
-            (base + "fuse/api/llm", LLMHandler),
-            (base + "fuse/api/llm/engines", EnginesHandler),
-            (base + "fuse/api/llm/stream", StreamHandler),
-            (base + "fuse/static/styles.json", StylesHandler),
-            (base + "fuse/static/chat-styles.css", ChatStylesHandler),
-            (base + "fuse/api/llm/admin", AdminListHandler),
-            (base + "fuse/api/llm/admin/(.*)", AdminHandler),
-        ])
+    # Extension registration will be handled below.
 
 except Exception:
     # Capture the import-time exception for diagnostics and fall back to no-op handlers
@@ -710,7 +682,38 @@ except Exception:
     AdminListHandler = None
     AdminHandler = None
 
-    def _jupyter_server_extension_paths():
+
+def _jupyter_server_extension_paths():
+    if OpsHandler is None:
         return []
-    def load_jupyter_server_extension(nb_app):
+    return [{"module": "src.jupyter.server"}]
+
+def load_jupyter_server_extension(nb_app):
+    if OpsHandler is None:
         raise RuntimeError("tornado or jupyter server components not available")
+        
+    web_app = nb_app.web_app
+    host_pattern = ".*"
+    base = web_app.settings.get("base_url", "")
+    # Ensure base_url ends with / for proper concatenation
+    if base and not base.endswith("/"):
+        base = base + "/"
+    handlers = [
+        (base + "fuse/api/ops", OpsHandler),
+        (base + "fuse/api/completions", CompletionsHandler),
+        (base + "fuse/api/op_attributes", OpAttributesHandler),
+        (base + "fuse/api/map_error", MapErrorHandler),
+        (base + "fuse/api/health", HealthHandler),
+        (base + "fuse/welcome", WelcomeHandler),
+    ]
+    web_app.add_handlers(host_pattern, handlers)
+    # Also register LLM endpoint
+    web_app.add_handlers(host_pattern, [
+        (base + "fuse/api/llm", LLMHandler),
+        (base + "fuse/api/llm/engines", EnginesHandler),
+        (base + "fuse/api/llm/stream", StreamHandler),
+        (base + "fuse/static/styles.json", StylesHandler),
+        (base + "fuse/static/chat-styles.css", ChatStylesHandler),
+        (base + "fuse/api/llm/admin", AdminListHandler),
+        (base + "fuse/api/llm/admin/(.*)", AdminHandler),
+    ])

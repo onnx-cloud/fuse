@@ -13,7 +13,6 @@ if ROOT not in sys.path:
 # check missing/incompatible @fuse behavior. This avoids monkeypatching parser
 # internals while keeping the test-suite reasonably noiseless during the
 # transition to explicit @fuse declarations in all tests.
-from tests.test_utils import project_fuse_version
 
 
 @pytest.fixture(autouse=True)

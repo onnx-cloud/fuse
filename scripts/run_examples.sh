@@ -52,7 +52,7 @@ $PYTHON - <<PY
 from src.cli import commands
 from src.cli import cli_helpers
 files = cli_helpers.find_fuse_files('examples/golden')
-res = commands.cmd_onnx(files, out_dir='$OUT_DIR')
+res = commands.cmd_compile(files, out_dir='$OUT_DIR')
 for p in res:
     print(p)
 PY

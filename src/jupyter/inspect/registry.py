@@ -5,10 +5,10 @@ Allows registering custom decoders and retrieving them by name.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+from typing import Callable, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .core import TensorView, TensorLike
+    from .core import TensorView
 
 # Global registry of decoders
 _DECODERS: Dict[str, Callable[..., "TensorView"]] = {}

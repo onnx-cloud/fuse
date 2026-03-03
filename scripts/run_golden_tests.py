@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Run @golden tests from examples/golden and examples/cookbook.
+"""Run golden tests from examples/golden .
 
 Usage: ./scripts/run_golden_tests.py
 
-This script finds `.fuse` files under `examples/` that contain `@golden` tests
+This script finds `.fuse` files under `examples/` that contain tests
 and executes them using the in-process testing harness (no external runtimes).
 """
 
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 from src.cli.helpers import parse_fuse_file
 from src.testing import run_fuse_tests
 
-EX_DIRS = [ROOT / "examples" / "golden", ROOT / "examples" / "cookbook"]
+EX_DIRS = [ROOT / "examples" / "golden", ROOT / "examples" / "smoke"]
 
 
 def find_golden_files():

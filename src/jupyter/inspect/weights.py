@@ -9,12 +9,12 @@ Provides:
 from __future__ import annotations
 
 import html as _html
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .core import TensorView, TensorLike, _to_numpy, _format_shape, _format_dtype, _format_size
+from .core import TensorView, TensorLike, _format_shape, _format_dtype, _format_size
 
 try:
     from IPython.display import HTML, display

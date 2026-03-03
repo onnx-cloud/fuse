@@ -36,7 +36,7 @@ def test_top_level_persistent_attaches_to_param_but_not_const():
     params = [d for d in ast if isinstance(d, dict) and d.get("type") == "param"]
     assert params, "no param found"
     p = params[0]
-    assert "input" in p and "x" in p["input"] and p["input"]["x"]["bus"] == "bus.in"
+    assert "input" in p and "x" in p["input"] and p["input"]["x"] == "bus.in"
     # const should NOT have persistent/input attached
     consts = [d for d in ast if isinstance(d, dict) and d.get("type") == "const"]
     assert consts, "no const found"

@@ -1,6 +1,5 @@
 import io
 import sys
-import pytest
 
 from src import __version__ as pkg_version
 from src.cli import main

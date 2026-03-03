@@ -1,5 +1,4 @@
 import subprocess
-import sys
 import pytest
 
 # dropping 'dev' since it provokes recursive make issues in some environments

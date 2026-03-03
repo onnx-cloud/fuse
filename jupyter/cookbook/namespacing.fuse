@@ -6,10 +6,6 @@
 @version 0.7.0
 @domain jupyter.cookbook
 
-# Notes on namespacing: the exporter can optionally apply stable prefixes like `file:function`.
-# This example is a simple function demonstrating that behaviour is controlled by the CLI flags
-# `--domain-by` and `--no-ns` rather than the source files themselves.
-
 fn demo_ns(x: f32[3]) -> f32[3] {
   Add(x, x)
 }

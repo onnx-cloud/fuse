@@ -1,4 +1,4 @@
-import json
+import pytest
 from pathlib import Path
 import ast
 from src.parser import fuse_parser
@@ -40,6 +40,10 @@ def test_benchmark_fuse_vs_py_invokes_script_and_writes_outputs(save_path: Path 
     if isinstance(save_path, str):
         save_path = Path(save_path)
     out = save_path / "benchmark"
+    # if there are no python examples under examples/golden, nothing to do
+    roots = Path("examples/golden")
+    if not any(roots.glob("*.py")):
+        pytest.skip("no python golden examples available", allow_module_level=True)
     if out.exists():
         for f in out.iterdir():
             try:

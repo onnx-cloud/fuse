@@ -15,7 +15,7 @@ def test_cmd_docs_emits_proto(tmp_path: Path):
 node algebraic(a: f32) -> f32 {{ a }}
 """, encoding='utf-8')
     out = tmp_path
-    res = cmd_docs([str(src)], out_dir=str(out), md=False, ttl=False, dot=False, ast=False, proto=True, render=False, force=True)
+    cmd_docs([str(src)], out_dir=str(out), md=False, ttl=False, dot=False, ast=False, proto=True, render=False, force=True)
     p = out / "algebraic.proto"
     assert p.exists(), f"expected {p} to exist"
     txt = p.read_text(encoding='utf-8')

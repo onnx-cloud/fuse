@@ -1,6 +1,3 @@
-# top-level graph in bound to input/output.
-# @proof not required unless novel
-
 @fuse 0.7
 @opset onnx 18
 @version 0.7.0

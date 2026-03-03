@@ -15,8 +15,8 @@ class SessionManager:
     """Simple container to be instantiated per kernel session.
 
     Typical usage in notebooks:
-      %load_ext src.jupyter.ipython
-      from fuse_jupyter import session
+      %load_ext src.jupyter.extension
+      from src.jupyter import session
       session = _fuse_session  # created by extension
     """
 

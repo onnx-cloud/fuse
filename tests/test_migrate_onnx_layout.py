@@ -1,4 +1,3 @@
-from pathlib import Path
 import pytest
 
 from src.scripts import migrate_onnx_layout as mig

@@ -1,5 +1,7 @@
 Unreleased
 
+- Fix: Multiple-return nodes now gracefully output sequences strictly matched by index. Destructuring assignments (let (a, b) = f(...)) of single-output calls are now correctly rejected internally instead of emitting invalid SequenceAt nodes.
+
 - Add: Generated operator catalog `ONNX_OPS.json` and a convenience script `scripts.supported_ops` to regenerate it (use `python -m scripts.supported_ops --output ONNX_OPS.json`).
 
 - Note: `GraphContext` accepts an injectable `name_allocator: NameAllocator` (default: `StableNameAllocator`) to enable deterministic, testable naming. This is backwards-compatible: if no allocator is provided, legacy naming is preserved. If you depend on specific node names for downstream tooling, add a test to lock the expected naming behavior and update the changelog when intentionally changing it.
@@ -7,7 +9,6 @@ Unreleased
 - Add: Generated gold artifacts: `docs/ebnf.md` (extracted from `src/parser.py`) and `./schemas/fuse.ast.schema.json` (canonical AST schema). Use `./scripts/generate_gold.py` to refresh.
 - Fix: Parser accepts shorthand array types like `f32[1]` and `MyType[3]` (new `array_scalar` and `ident_array` forms).
 - Fix: Add `@import ... from "..."` support with local caching, LOCK.json provenance (`onnx/LOCK.json`), and `--refresh-cache/--import` CLI flags.
-- Change: Namespacing now prefers an explicit `@domain <name>` declaration; lowering will require `@domain` when namespacing is enabled (use `--no-ns` to disable).
 - Add: Lowering-time assertions: `assert expr` statements are enforced at lowering if resolvable; non-constant assertions are recorded in model metadata under `fuse.asserts` for runtime tooling and debugging.
 
 Fuse 
@@ -54,7 +55,6 @@ Fuse v1.0 (draft)
 
 [Ops & Syntax]
 - Introduced attribute handling: postfix attribute syntax `name@=value` supported; unadorned `name=value` will be treated as an attribute when the value is a literal.
-- Added `@golden` top-level test that compiles to ONNX and executes numeric checks with ReferenceEvaluator.
 
 [Quantization]
 - Replaced call-based `Quantize(x, s, z)` / `Dequantize(x, s, z)` helpers with function-level pragmas `@quantize(...)` and `@dequantize(...)` (they lower to `QuantizeLinear` / `DequantizeLinear` / `Cast` as appropriate); updated tests and examples to use the new pragmas.

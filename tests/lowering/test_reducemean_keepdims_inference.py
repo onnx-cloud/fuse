@@ -1,5 +1,3 @@
-from pathlib import Path
-import tempfile
 
 from src.cli import commands
 import onnx
@@ -28,7 +26,7 @@ model m(x: Img) -> f32[1,32] {{
 }}
 """
     )
-    res = commands.cmd_onnx([str(p)], out_dir=str(tmp_path / "onnx"))
+    res = commands.cmd_compile([str(p)], out_dir=str(tmp_path / "onnx"))
     # Ensure a model was generated and no lowering errors were reported
     generated = [r for r in res if r[1] is not None]
     assert generated, f"No ONNX produced: {res}"
@@ -62,7 +60,7 @@ model m(x: Img) -> f32[1,32] {{
 }}
 """
     )
-    res = commands.cmd_onnx([str(p)], out_dir=str(tmp_path / "onnx2"))
+    res = commands.cmd_compile([str(p)], out_dir=str(tmp_path / "onnx2"))
     generated = [r for r in res if r[1] is not None]
     assert generated, f"No ONNX produced: {res}"
     _, model_path, err = generated[0]

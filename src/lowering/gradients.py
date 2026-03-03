@@ -198,7 +198,6 @@ def generate_gradients(ctx) -> Dict[str, Any]:
             # original producer directly (ergonomic for Netron/human). Fall
             # back to emitting an Identity when renaming is not possible.
             t = ctx.value_types.get(pname) or {}
-            added_name = grad_name
             try:
                 # Attempt to rename the producing value to the canonical
                 # gradient name so no extra Identity node is necessary.
@@ -285,7 +284,6 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                 state_inputs = []
                 if op_name in ("Adam", "AdamW"):
                     for sname in ("m", "v"):
-                        state_name = f"{param}.{sname}"
                         t = ctx.value_types.get(param) or {}
                         dims = t.get("dims", []) or []
                         # Try to materialize zeros if shape is concrete

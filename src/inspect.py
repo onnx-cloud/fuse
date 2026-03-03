@@ -126,19 +126,8 @@ def _compactify_ast(ast: object) -> dict:
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # write to temp file then move
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.replace(tmp, str(path))
-    finally:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        except Exception:
-            pass
+    from src.cli.io import write_binary_atomic
+    write_binary_atomic(text.encode("utf-8"), str(path))
 
 
 def _safe_move_dir(tmp_dir: Path, out_dir: Path, force: bool) -> None:
@@ -255,13 +244,13 @@ def _safe_move_dir(tmp_dir: Path, out_dir: Path, force: bool) -> None:
             plt.ylabel("Count")
             plt.tight_layout()
 
-            out_file = out_dir / f"params.png"
+            out_file = out_dir / "params.png"
             written.append(str(out_file))
             if not dry_run:
                 try:
                     plt.savefig(str(out_file), format="png")
                 except Exception as e:
-                    err = out_dir / f"params.png.error.txt"
+                    err = out_dir / "params.png.error.txt"
                     _atomic_write_text(err, str(e))
                     written[-1] = str(err)
             plt.close()

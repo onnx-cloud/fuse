@@ -9,8 +9,8 @@ def test_cli_training_exports_training_info_and_grad(tmp_path: Path):
     out_dir = tmp_path / "onnx"
     out_dir.mkdir()
 
-    res = cli_commands.cmd_onnx([str(src)], out_dir=str(out_dir), training=True)
-    print("DEBUG: cmd_onnx result:", res)
+    res = cli_commands.cmd_compile([str(src)], out_dir=str(out_dir), training=True)
+    print("DEBUG: cmd_compile result:", res)
     assert res and len(res) == 1
     src_path, out_path, err = res[0]
     assert err is None

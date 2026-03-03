@@ -15,3 +15,5 @@ from . import convert  # noqa: F401
 from ..ops import OpsLowerer  # backward-compatible export
 
 __all__ = ["get_lowerer", "onnx_op", "OpsLowerer"]
+from .registry import validate_registry
+validate_registry()

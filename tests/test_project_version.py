@@ -1,5 +1,4 @@
 import os
-import pytest
 from src.util.project_version import get_project_version
 
 

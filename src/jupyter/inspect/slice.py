@@ -8,7 +8,7 @@ Provides:
 from __future__ import annotations
 
 import html as _html
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 

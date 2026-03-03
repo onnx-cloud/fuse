@@ -211,32 +211,30 @@ class TestModelToTTL:
 class TestSaveTTL:
     """Test save_ttl function."""
 
-    def test_save_to_file(self):
+    def test_save_to_file(self, tmp_path):
         """Test saving TTL to file."""
         model = _create_simple_model()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = Path(tmpdir) / "test.ttl"
-            result = save_ttl(model, out_path)
+        out_path = tmp_path / "test.ttl"
+        result = save_ttl(model, out_path)
 
-            assert result == out_path
-            assert out_path.exists()
+        assert result == out_path
+        assert out_path.exists()
 
-            content = out_path.read_text()
-            assert "@prefix onnx:" in content
+        content = out_path.read_text()
+        assert "@prefix onnx:" in content
 
-    def test_save_determinism(self):
+    def test_save_determinism(self, tmp_path):
         """Test that saved files are deterministic."""
         model = _create_simple_model()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path1 = Path(tmpdir) / "test1.ttl"
-            path2 = Path(tmpdir) / "test2.ttl"
+        path1 = tmp_path / "test1.ttl"
+        path2 = tmp_path / "test2.ttl"
 
-            save_ttl(model, path1)
-            save_ttl(model, path2)
+        save_ttl(model, path1)
+        save_ttl(model, path2)
 
-            assert path1.read_text() == path2.read_text()
+        assert path1.read_text() == path2.read_text()
 
 
 class TestOnnxFileToTTL:
@@ -255,19 +253,18 @@ class TestOnnxFileToTTL:
             assert "@prefix onnx:" in ttl
             assert "a onnx:Model" in ttl
 
-    def test_convert_and_save(self):
+    def test_convert_and_save(self, tmp_path):
         """Test converting ONNX file and saving TTL."""
         model = _create_simple_model()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            onnx_path = Path(tmpdir) / "test.onnx"
-            ttl_path = Path(tmpdir) / "test.ttl"
+        onnx_path = tmp_path / "test.onnx"
+        ttl_path = tmp_path / "test.ttl"
 
-            onnx.save(model, str(onnx_path))
-            ttl = onnx_file_to_ttl(onnx_path, ttl_path)
+        onnx.save(model, str(onnx_path))
+        ttl = onnx_file_to_ttl(onnx_path, ttl_path)
 
-            assert ttl_path.exists()
-            assert ttl_path.read_text() == ttl
+        assert ttl_path.exists()
+        assert ttl_path.read_text() == ttl
 
 
 class TestTTLFormatting:

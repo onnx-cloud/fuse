@@ -1,6 +1,5 @@
 import pytest
 pytest.importorskip("onnx")
-import onnx
 from onnx import helper, TensorProto
 from src.lowering.training_info_emit import emit_training_info
 from src.graph_context import GraphContext

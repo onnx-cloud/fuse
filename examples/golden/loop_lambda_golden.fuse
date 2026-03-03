@@ -12,7 +12,7 @@ fn loop_sum(n: i64) -> f32 {
   >(n, true, [0.0])
 }
 
-@golden @proof golden() {
+@proof golden() {
   out = loop_sum(5)
   assert out == [10.0]
 }

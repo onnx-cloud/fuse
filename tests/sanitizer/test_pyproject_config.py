@@ -1,5 +1,3 @@
-import json
-from pathlib import Path
 import os
 
 from src.sanitizer import sanitize_ast

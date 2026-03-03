@@ -1,5 +1,5 @@
 import json
-from onnx import helper, TensorProto, ModelProto
+from onnx import helper, TensorProto
 from src.lowering.training_checks import check_training_model
 
 

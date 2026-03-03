@@ -1,0 +1,17 @@
+{
+  "fuse": {
+    "bytes": 633,
+    "decl_count": 8,
+    "lines": 41,
+    "path": "examples/golden/control_flow_smoke.fuse"
+  },
+  "name": "control_flow_smoke",
+  "python": {
+    "ast_nodes": 102,
+    "bytes": 588,
+    "func_count": 0,
+    "import_count": 4,
+    "lines": 21,
+    "path": "examples/golden/control_flow_smoke.py"
+  }
+}

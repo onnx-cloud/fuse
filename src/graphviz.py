@@ -105,7 +105,7 @@ def render_dot(dot: str, out_path: str, fmt: str = "svg") -> bool:
         src.format = fmt
         src.render(filename=out_file, cleanup=True)
         return True
-    except Exception:
+    except ImportError:
         # fallback to `dot` binary
         dot_exec = shutil.which("dot")
         if not dot_exec:
@@ -121,7 +121,7 @@ def render_dot(dot: str, out_path: str, fmt: str = "svg") -> bool:
             )
             out.write_bytes(p.stdout)
             return True
-        except Exception:
+        except ImportError:
             return False
 
 
@@ -153,7 +153,7 @@ def render_dot_safe(dot: str, out_path: str, fmt: str = "svg", timeout: int = 10
             err = out.with_suffix(out.suffix + ".error.txt")
             try:
                 err.write_text(str(e), encoding="utf-8")
-            except Exception:
+            except ImportError:
                 pass
             return False
 
@@ -174,17 +174,18 @@ def render_dot_safe(dot: str, out_path: str, fmt: str = "svg", timeout: int = 10
         "    try:\n"
         "        out_e = out.with_suffix(out.suffix + '.error.txt')\n"
         "        out_e.write_text(str(e), encoding='utf-8')\n"
-        "    except Exception:\n"
+        "    except ImportError:\n"
         "        pass\n"
         "    sys.exit(1)"
     )
     try:
-        res = subprocess.run([sys.executable, "-c", helper], check=False, timeout=timeout)
+        import sys
+        subprocess.run([sys.executable, "-c", helper], check=False, timeout=timeout)
         return out.exists()
     except subprocess.TimeoutExpired as e:
         err = out.with_suffix(out.suffix + ".error.txt")
         try:
             err.write_text(f"render timeout: {e}", encoding="utf-8")
-        except Exception:
+        except ImportError:
             pass
         return False

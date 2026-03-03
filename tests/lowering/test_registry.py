@@ -63,7 +63,6 @@ def test_lower_call_uses_registry():
     class DummyCtx:
         opset = 21
 
-    opslowerer = registry  # hack: registry object doesn't have _lower_onnx_call
 
     # Instead, use real OpsLowerer with dummy lowerer
     from src.lowering.ops import OpsLowerer

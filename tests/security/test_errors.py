@@ -1,11 +1,9 @@
 """Tests for error code system."""
 
-import pytest
 from src.errors import (
     FuseError,
     E001_UnsafeImportURL,
     E002_PathTraversal,
-    E003_ImportNotFound,
     E010_InvalidDtype,
     E011_TypeInferenceFailed,
     E020_ParseError,

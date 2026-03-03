@@ -46,7 +46,7 @@ def _load_canonical() -> Any:
             import os
 
             here = os.path.dirname(__file__)
-            path = os.path.join(here, "commands.py")
+            path = os.path.join(here, "commands/__init__.py")
             spec = importlib.util.spec_from_file_location(
                 "src.cli.commands", path
             )
@@ -69,7 +69,7 @@ __all__ = [
     "LintResult",
     "cmd_verify",
     "cmd_lint",
-    "cmd_onnx",
+    "cmd_compile",
     "cmd_models",
     "cmd_run",
     "cmd_golden",
@@ -123,10 +123,10 @@ def cmd_lint(*args, **kwargs):
     return getattr(mod, "cmd_lint")(*args, **kwargs)
 
 
-def cmd_onnx(*args, **kwargs):
-    """Proxy to canonical implementation: `src.cli.commands.cmd_onnx`."""
+def cmd_compile(*args, **kwargs):
+    """Proxy to canonical implementation: `src.cli.commands.cmd_compile`."""
     mod = _load_canonical()
-    return getattr(mod, "cmd_onnx")(*args, **kwargs)
+    return getattr(mod, "cmd_compile")(*args, **kwargs)
 
 
 def cmd_run(*args, **kwargs):

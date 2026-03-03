@@ -7,7 +7,6 @@ extracting this responsibility from the main FuseLowerer class.
 from typing import Any, Dict, List, Optional
 
 from ..graph_context import GraphContext, as_tensor_type
-from ..errors import E011_TypeInferenceFailed
 
 
 class TypeInferencer:

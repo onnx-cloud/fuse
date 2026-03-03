@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-import onnx
 from onnx import helper
 from onnx import TensorProto
 

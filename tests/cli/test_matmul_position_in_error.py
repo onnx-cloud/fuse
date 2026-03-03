@@ -16,7 +16,7 @@ def test_golden_matmul_error_includes_exact_position(tmp_path):
         }
         """
     )
-    res = commands.cmd_onnx([str(p)])
+    res = commands.cmd_compile([str(p)])
     assert res
     _, outp, err = res[0]
     assert outp is None

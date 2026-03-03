@@ -8,9 +8,7 @@ import html as _html
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from IPython.core import magic_arguments
-from IPython.core.magic import (Magics, magics_class, cell_magic, line_cell_magic,
-                                line_magic, needs_local_scope)
+from IPython.core.magic import (Magics, magics_class, cell_magic, line_magic, needs_local_scope)
 from IPython.display import HTML, display
 
 from src.parser import fuse_parser
@@ -84,12 +82,22 @@ class Model:
 
     def run(self, inputs: Dict[str, Any], provider: str = "reference"):
         """Run inference with the model."""
+        # resolve input names: allow users to specify short names when the
+        # model's graph inputs are qualified (e.g. 'id.x').
         feeds = {}
+        graph_inputs = [vi.name for vi in self.model.graph.input]
         for k, v in (inputs or {}).items():
+            target = k
+            if k not in graph_inputs:
+                # try suffix match after last dot
+                for gi in graph_inputs:
+                    if gi.endswith(f".{k}"):
+                        target = gi
+                        break
             if isinstance(v, np.ndarray):
-                feeds[k] = v
+                feeds[target] = v
             else:
-                feeds[k] = np.asarray(v)
+                feeds[target] = np.asarray(v)
         res = self._sandbox.run(self.model, feeds, runtime=provider)
         return {k: v for k, v in res.outputs.items()}
 
@@ -373,7 +381,7 @@ class Model:
         # Toolbar with action buttons
         # Generate unique ID for this model card
         import hashlib
-        card_id = hashlib.md5(f"{meta['name']}{id(self)}".encode()).hexdigest()[:8]
+        hashlib.md5(f"{meta['name']}{id(self)}".encode()).hexdigest()[:8]
         
         toolbar = f"""
         <div class="fuse-toolbar">
@@ -741,7 +749,7 @@ class FuseMagics(Magics):
     @line_magic
     def fuse_onnx(self, line: str):
         pos, kw = self._parse_kv_args(line)
-        from src.cli.commands import cmd_onnx
+        from src.cli.commands import cmd_compile
 
         files = pos or []
         opts = {}
@@ -749,8 +757,8 @@ class FuseMagics(Magics):
         for k in ("out-dir", "training", "bake", "seal"):
             if k.replace('-', '_') in kw:
                 opts[k.replace("-", "_")] = kw.get(k.replace('-', '_'))
-        res = cmd_onnx(files, **opts)
-        # cmd_onnx returns list of tuples (src, outpath, error)
+        res = cmd_compile(files, **opts)
+        # cmd_compile returns list of tuples (src, outpath, error)
         paths = [r[1] for r in res if r[1]]
         return self._display_paths(paths)
 

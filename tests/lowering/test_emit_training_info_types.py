@@ -1,4 +1,3 @@
-import onnx
 from onnx import helper
 from src.lowering.training_info_emit import emit_training_info
 from src.graph_context import GraphContext, fuse_dtype_to_onnx

@@ -24,3 +24,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 "src.jupyter" = ["../jupyter/settings/**", "../jupyter/labextensions/**", "../jupyter/static/**"]
+
+[tool.ruff]
+[tool.ruff.lint]
+ignore = ["E402", "E741"]

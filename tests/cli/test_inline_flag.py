@@ -1,6 +1,4 @@
-import pytest
 import onnx
-from pathlib import Path
 from src.parser import fuse_parser
 from src.cli.cli_helpers import export_onnx_from_ast
 

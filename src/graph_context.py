@@ -14,8 +14,6 @@ import onnx
 from onnx import TensorProto, helper
 import numpy as np
 from src.onnx_opset import latest_onnx_opset, validate_opset_version
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _pkg_version
 
 
 def _get_project_version_from_pyproject() -> str | None:
@@ -33,7 +31,7 @@ def _get_project_version_from_pyproject() -> str | None:
         v = os.environ.get("FUSE_PROJECT_VERSION")
         if v:
             return str(v)
-    except Exception:
+    except (OSError, ImportError, KeyError):
         pass
 
     try:
@@ -47,9 +45,9 @@ def _get_project_version_from_pyproject() -> str | None:
                     ver = data.get("project", {}).get("version")
                     if ver:
                         return str(ver)
-                except Exception:
+                except ValueError:
                     return None
-    except Exception:
+    except ImportError:
         # tomllib or parsing not available — best-effort only
         return None
 
@@ -204,7 +202,7 @@ class GraphContext:
         # Prefer injected allocator when present; fall back to legacy counter
         try:
             return self._name_allocator.next_node_name(op_type)
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             # Legacy behavior
             if self._node_id == 0 and getattr(self, "scope_display", None):
                 name = self.scope_display
@@ -218,7 +216,7 @@ class GraphContext:
     def _next_const_name(self) -> str:
         try:
             return self._name_allocator.next_const_name()
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             prefix = f"{self.scope_prefix}__" if self.scope_prefix else ""
             name = f"{prefix}const_{self._const_id}"
             self._const_id += 1
@@ -284,7 +282,7 @@ class GraphContext:
                 return
         try:
             self.functions.append(func)
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError, KeyError) as e:
             # best-effort: log and respect strict mode
             import logging
 
@@ -369,7 +367,7 @@ class GraphContext:
             for d in elem_shape or []:
                 try:
                     shape.append(int(d))
-                except Exception:
+                except (ValueError, TypeError):
                     shape.append(0)
             vi = helper.make_tensor_sequence_value_info(
                 graph_name, elem_type, shape
@@ -391,7 +389,7 @@ class GraphContext:
         for d in orig_dims:
             try:
                 dims.append(int(d))
-            except Exception:
+            except (ValueError, TypeError):
                 dims.append(0)
         vi = helper.make_tensor_value_info(
             graph_name,
@@ -407,9 +405,9 @@ class GraphContext:
                         # Convert tokens or other types to string
                         try:
                             vi.type.tensor_type.shape.dim[i].dim_param = str(d)
-                        except Exception:
+                        except AttributeError:
                             pass
-        except Exception:
+        except AttributeError:
             pass
         meta = None
         if isinstance(param.get("type"), dict) and isinstance(
@@ -589,7 +587,7 @@ class GraphContext:
                             graph_name, fuse_dtype_to_onnx(typ["scalar"]), dims
                         )
                         self.inputs[graph_name] = vi
-                except Exception:
+                except (TypeError, ValueError, AttributeError, KeyError):
                     pass
                 return name
 
@@ -624,7 +622,7 @@ class GraphContext:
                         name, fuse_dtype_to_onnx(typ["scalar"]), dims
                     )
                     self.inputs[name] = vi
-            except Exception:
+            except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             external_files = self.model_metadata.get("external_files", [])
             if src:
@@ -688,7 +686,7 @@ class GraphContext:
                         graph_name, fuse_dtype_to_onnx(typ["scalar"]), dims
                     )
                     self.inputs[graph_name] = vi
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
         return name
 
@@ -728,7 +726,7 @@ class GraphContext:
                     qname, fuse_dtype_to_onnx(tinfo["scalar"]), dims
                 )
                 self.inputs[qname] = vi
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
         return qname
 
@@ -769,7 +767,7 @@ class GraphContext:
                     qname, fuse_dtype_to_onnx(tinfo["scalar"]), dims
                 )
                 self.inputs[qname] = vi
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
         return qname
 
@@ -937,7 +935,7 @@ class GraphContext:
             for d in elem_shape or []:
                 try:
                     shape.append(int(d))
-                except Exception:
+                except (ValueError, TypeError):
                     shape.append(0)
             vi = helper.make_tensor_sequence_value_info(
                 graph_name, elem_type, shape
@@ -959,7 +957,7 @@ class GraphContext:
         for d in tinfo.get("dims") or []:
             try:
                 dims.append(int(d))
-            except Exception:
+            except (ValueError, TypeError):
                 dims.append(0)
         vi = helper.make_tensor_value_info(
             graph_name,
@@ -990,7 +988,7 @@ class GraphContext:
                 new_init.CopyFrom(self.initializers[internal_name])
                 new_init.name = graph_name
                 self.initializers[graph_name] = new_init
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
         return graph_name
 
@@ -1055,7 +1053,7 @@ class GraphContext:
                 20: 15,
             }
             model.ir_version = OPSET_TO_IR.get(core_opset, 8)
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             # best-effort: ignore if import or mapping fails
             pass
 
@@ -1087,7 +1085,7 @@ class GraphContext:
             if getattr(self, "_training_info", None):
                 for ti in self._training_info:
                     model.training_info.append(ti)
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
 
         # Append any user-defined FunctionProtos collected during lowering
@@ -1095,7 +1093,7 @@ class GraphContext:
             for fn in getattr(self, "functions", []):
                 # copy to avoid accidental shared-state modifications
                 model.functions.append(fn)
-        except Exception:
+        except (TypeError, ValueError, AttributeError, KeyError):
             pass
 
         return model

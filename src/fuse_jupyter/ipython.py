@@ -1,8 +1,8 @@
-"""Compatibility shim: re-export `src.jupyter.ipython` for legacy imports.
+"""Compatibility shim: re-export `src.jupyter.extension` for legacy imports.
 """
 from __future__ import annotations
 
-from src.jupyter.ipython import (
+from src.jupyter.extension import (
     load_ipython_extension,
     unload_ipython_extension,
 )

@@ -1,5 +1,4 @@
 import json
-import pytest
 from types import SimpleNamespace
 from pathlib import Path
 from src.cli import cli_dispatch

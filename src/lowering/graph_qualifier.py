@@ -4,7 +4,6 @@ Handles adding scope prefixes to nodes and values in ONNX graphs,
 extracted from main lowering logic for better modularity.
 """
 
-from typing import Optional
 
 import onnx
 from ..graph_context import GraphContext

@@ -5,7 +5,7 @@ building and centralizes the SAFE_MAX_OPSET cap.
 """
 from __future__ import annotations
 
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 
 SAFE_MAX_OPSET = 23

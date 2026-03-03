@@ -111,10 +111,10 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # COMPILE (formerly 'onnx')
     if cmd == "compile":
         files = cli_helpers.find_fuse_files(getattr(args, "f", []))
-        res = cli_commands.cmd_onnx(
+        res = cli_commands.cmd_compile(
             files,
             out_dir=args.o,
-            output_base=getattr(args, "output_base", "./tmp/onnx"),
+            output_base=getattr(args, "output_base", "./onnx"),
             flat=getattr(args, "flat", False),
             refresh_cache=getattr(args, "refresh_cache", False),
             refresh_import=getattr(args, "refresh_import", None),
@@ -136,16 +136,54 @@ def dispatch(args: types.SimpleNamespace) -> int:
             tf=getattr(args, "tf", False),
             tfl=getattr(args, "tfl", False),
             pt=getattr(args, "pt", False),
+            # Pass-through to cmd_compile, which will orchestrate docs generation
+            docs=getattr(args, "docs", False),
             # Global strict mode
             strict=getattr(args, "strict", False),
         )
         ok = True
+        # collect compiled ONNX paths for optional docs step
+        compiled_paths: list[str] = []
         for src, outp, err in res:
             if err:
                 print(f"[FAIL] {src} - {err}")
                 ok = False
             else:
-                print(outp)
+                # outp can be a single path or a list of paths
+                if isinstance(outp, list):
+                    for p in outp:
+                        print(p)
+                        compiled_paths.append(p)
+                elif outp:
+                    print(outp)
+                    compiled_paths.append(outp)
+        # if docs flag set, invoke docs on the compiled ONNX models
+        if getattr(args, "docs", False) and compiled_paths:
+            # always enable md/ttl/dot/ast when compile is invoked with --docs
+            doc_res = cli_commands.cmd_docs(
+                compiled_paths,
+                out_dir=getattr(args, "o", None),
+                md=True,
+                ttl=True,
+                dot=True,
+                ast=True,
+                proto=getattr(args, "proto", False),
+                render=getattr(args, "render", False),
+                force=getattr(args, "force", False),
+                dry_run=getattr(args, "dry_run", False),
+                filter_re=getattr(args, "filter", None),
+            )
+            for _src, paths, err in doc_res:
+                if err:
+                    print(f"[FAIL] docs - {err}")
+                    ok = False
+                else:
+                    if isinstance(paths, list):
+                        for p in paths:
+                            print(p)
+                    elif paths:
+                        print(paths)
+                    print(outp)
 
         # Handle --ttl flag: export TTL alongside ONNX
         ttl_arg = getattr(args, "ttl", False)
@@ -160,42 +198,33 @@ def dispatch(args: types.SimpleNamespace) -> int:
             ttl_ns_uri = getattr(args, "ttl_ns_uri", "")
 
             for src, outp, err in res:
-                if outp and not err:
+                if err:
+                    continue
+                
+                paths_to_process = []
+                if isinstance(outp, list):
+                    paths_to_process.extend(outp)
+                elif outp:
+                    paths_to_process.append(outp)
+
+                for model_path in paths_to_process:
+                    if not str(model_path).endswith(".onnx"):
+                        continue
                     try:
-                        model = onnx.load(str(outp))
+                        model = onnx.load(str(model_path))
                         # Determine TTL output path
                         if isinstance(ttl_arg, str):
                             ttl_path = Path(ttl_arg)
                         else:
-                            ttl_path = Path(outp).with_suffix(".ttl")
+                            ttl_path = Path(model_path).with_suffix(".ttl")
                         save_ttl(model, ttl_path, user_ns=ttl_ns, user_ns_uri=ttl_ns_uri)
                         print(str(ttl_path))
                     except Exception as e:
-                        print(f"[WARN] Failed to export TTL for {outp}: {e}")
-
-        # If user requested docs emission, generate docs for each compiled model
-        if getattr(args, "docs", False) and ok:
-            # docs contains md, ttl, dot, ast all by default
-            for src, outp, err in res:
-                if outp and not err:
-                    try:
-                        doc_res = cli_commands.cmd_docs(
-                            [outp],
-                            out_dir=getattr(args, "o", None),
-                            md=True,
-                            ttl=True,
-                            dot=True,
-                            ast=True,
-                            proto=getattr(args, "proto", False),
-                            render=False,
-                            force=True,
-                        )
-                        for _s, outs, _e in doc_res:
-                            if outs:
-                                for p in outs:
-                                    print(p)
+                        print(f"[WARN] Failed to export TTL for {model_path}: {e}")
+                        ok = False
+                        print(str(ttl_path))
                     except Exception as e:
-                        print(f"[WARN] failed to generate docs for {outp}: {e}")
+                        print(f"[WARN] Failed to export TTL for {model_path}: {e}")
 
         return 0 if ok else 1
 
@@ -386,10 +415,6 @@ def dispatch(args: types.SimpleNamespace) -> int:
         for r in res:
             # r may be a dict-style result or a tuple (file, res, err)
             if isinstance(r, dict):
-                if r.get("skipped"):
-                    if not getattr(args, "quiet", False):
-                        print(f"[SKIP] {r.get('file')} (no @golden blocks)")
-                    continue
                 if r.get("failed", 0) > 0:
                     if not getattr(args, "quiet", False):
                         print(f"[FAIL] {r.get('file')}")
@@ -410,10 +435,6 @@ def dispatch(args: types.SimpleNamespace) -> int:
                     continue
                 # If rval is a dict-like result, inspect it
                 if hasattr(rval, "get"):
-                    if rval.get("skipped"):
-                        if not getattr(args, "quiet", False):
-                            print(f"[SKIP] {f} (no @golden blocks)")
-                        continue
                     if rval.get("failed", 0) > 0:
                         if not getattr(args, "quiet", False):
                             print(f"[FAIL] {f}")

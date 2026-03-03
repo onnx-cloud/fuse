@@ -1,10 +1,7 @@
-from types import SimpleNamespace
 from pathlib import Path
-from src.cli import cli_dispatch
 from src.cli.commands import cmd_lint
 import onnx
 from onnx import helper, TensorProto
-import json
 
 
 def _make_model_duplicate_updates():

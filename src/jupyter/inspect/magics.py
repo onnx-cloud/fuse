@@ -10,7 +10,7 @@ Provides user-friendly magic commands:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 try:
     from IPython.core.magic import Magics, magics_class, line_magic, cell_magic

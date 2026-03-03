@@ -1,4 +1,3 @@
-import pytest
 import onnx
 from src.parser import fuse_parser
 from src.lowering import FuseLowerer
@@ -57,8 +56,7 @@ model m(x: f32) -> f32 {{ bar(x) }}
 
 def test_import_preserves_functions(tmp_path):
     # create a simple onnx model with a FunctionProto and import it from fuse
-    import os
-    from onnx import helper, FunctionProto as FP, ModelProto
+    from onnx import helper, FunctionProto as FP
 
     # build a small function graph
     f = FP()

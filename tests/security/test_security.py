@@ -1,11 +1,9 @@
 """Tests for security utilities."""
 
 import pytest
-from pathlib import Path
 from src.security import (
     validate_import_url,
     safe_path,
-    validate_file_path,
     is_safe_filename,
     DEFAULT_WHITELIST
 )

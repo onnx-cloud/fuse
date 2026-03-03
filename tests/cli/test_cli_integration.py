@@ -13,13 +13,13 @@ def test_cli_onnx_minimal(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
     rc = run_cmd(
-        ["compile", "-f", "examples/cookbook/golden_proof.fuse", "-o", str(out)]
+        ["compile", "-f", "jupyter/cookbook/golden_proof.fuse", "-o", str(out)]
     )
     assert rc == 0
 
 
 def test_cli_run_minimal():
-    rc = run_cmd(["run", "-f", "examples/cookbook/golden_proof.fuse"])
+    rc = run_cmd(["run", "-f", "jupyter/cookbook/golden_proof.fuse"])
     assert rc == 0
 
 

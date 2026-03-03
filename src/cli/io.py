@@ -15,7 +15,17 @@ from typing import Dict, List
 
 
 def ensure_dir_exists(path: str) -> None:
-    """Ensure the directory for `path` exists (creates parents as needed)."""
+    """Ensure the directory for `path` exists (creates parents as needed).
+    
+    Args:
+        path (str): The directory path or file path whose parent directory should exist.
+        
+    Returns:
+        None
+        
+    Raises:
+        OSError: If directory creation fails due to permissions or other OS errors.
+    """
     p = Path(path)
     d = p if p.is_dir() else p.parent
     d.mkdir(parents=True, exist_ok=True)
@@ -25,6 +35,16 @@ def write_binary_atomic(data: bytes, path: str) -> None:
     """Write bytes to `path` atomically by writing to a temp file and replacing.
 
     This avoids partially-written files being visible to other processes.
+    
+    Args:
+        data (bytes): The binary data to write.
+        path (str): The target file path.
+        
+    Returns:
+        None
+        
+    Raises:
+        OSError: If writing to the temporary file or replacing the target file fails.
     """
     target = Path(path)
     ensure_dir_exists(str(target))
@@ -54,6 +74,16 @@ def copy_external_files(entries: List[Dict[str, str]], out_dir: str) -> None:
 
     Warnings are printed to stderr on failure but the operation is best-effort
     and does not raise for individual file copy failures.
+
+    Args:
+        entries (List[Dict[str, str]]): List of entries defining `src` and `dest` file mapping.
+        out_dir (str): Destination directory.
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If destination directory creation fails.
     """
     outp = Path(out_dir)
     outp.mkdir(parents=True, exist_ok=True)

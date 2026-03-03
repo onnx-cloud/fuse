@@ -19,11 +19,11 @@ def _get_domain_from_meta(meta: dict) -> str | None:
         warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
         dom = meta.get("module")
     return dom
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # noqa: E402
 
-import onnx
-from src.graph_context import GraphContext
-from src.onnx_opset import convert_model_to_opset
+import onnx  # noqa: E402
+from src.graph_context import GraphContext  # noqa: E402
+from src.onnx_opset import convert_model_to_opset  # noqa: E402
 
 
 class ImportManager:
@@ -110,7 +110,7 @@ class ImportManager:
                         model = helper.make_model(graph)
                         model.ir_version = 7
                         model.opset_import[0].version = 18
-                        import onnx as _onnx
+                        import onnx as _onnx  # noqa: E402
 
                         _onnx.save(model, str(stub_path))
                     return {
@@ -459,7 +459,7 @@ class ImportManager:
                 # verify we fetched a valid ONNX model; if not, try common raw URL rewrites
                 def _validate_onnx_file(p: Path) -> bool:
                     try:
-                        import onnx
+                        import onnx  # noqa: E402
 
                         onnx.load(str(p))
                         return True

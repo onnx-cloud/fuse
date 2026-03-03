@@ -9,9 +9,8 @@ Provides:
 from __future__ import annotations
 
 import html as _html
-import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set, Union
 
 try:
     from IPython.display import HTML, display

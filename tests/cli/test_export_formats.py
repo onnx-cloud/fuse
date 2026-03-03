@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 import pytest
 pytest.importorskip("lark")
-import onnx
-import json
 from src.parser import fuse_parser
 from src.cli.cli_helpers import export_onnx_from_ast
 import src.cli.cli_helpers as ch

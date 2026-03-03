@@ -1,6 +1,5 @@
 import io
 import sys
-import pytest
 
 from src.cli import main
 

@@ -25,7 +25,7 @@ except Exception:
 for _name in (
     "cmd_verify",
     "cmd_lint",
-    "cmd_onnx",
+    "cmd_compile",
     "cmd_run",
     "cmd_golden",
     "cmd_models",
@@ -93,7 +93,7 @@ __all__ = [
     "cli_commands",
     "cmd_verify",
     "cmd_lint",
-    "cmd_onnx",
+    "cmd_compile",
     "cmd_run",
     "cmd_golden",
     "cmd_models",
@@ -209,8 +209,8 @@ def main(argv=None) -> int:
     p.add_argument("--training", action="store_true", dest="training", help="Emit training metadata (ModelProto.training_info) when present in source (opt-in)")
     # Optional export targets
     p.add_argument("--tf", action="store_true", dest="tf", help="Export TensorFlow SavedModel alongside ONNX (requires onnx-tf/tensorflow)")
-    p.add_argument("--flat", action="store_true", dest="flat", help="Preserve legacy flat ONNX output layout (default: structured domain-based under ./tmp/onnx)")
-    p.add_argument("--output-base", dest="output_base", default="./tmp/onnx", help="Base directory for saved ONNX artifacts (default: ./tmp/onnx)")
+    p.add_argument("--flat", action="store_true", dest="flat", help="Preserve legacy flat ONNX output layout")
+    p.add_argument("--output-base", dest="output_base", default="./onnx", help="Base directory for saved ONNX artifacts (default: ./tmp/onnx)")
     p.add_argument("--tfl", action="store_true", dest="tfl", help="Export TensorFlow Lite (.tflite) alongside ONNX (requires tensorflow)")
     p.add_argument("--pt", action="store_true", dest="pt", help="Export PyTorch .pt file alongside ONNX (requires onnx2pytorch/torch)")
     # Sealing options: embed deterministic hashes into model metadata
@@ -403,7 +403,7 @@ def main(argv=None) -> int:
     p.add_argument(
         "--json", action="store_true", help='Output JSON {"version":...}'
     )
-    import importlib.util
+    
     import json
 
     def _print_version(args):
@@ -429,7 +429,8 @@ def main(argv=None) -> int:
     try:
         args = parser.parse_args(argv)
     except Exception as e:
-        import traceback, sys
+        import traceback
+        import sys
         traceback.print_exc()
         print('parse_args raised:', e, file=sys.stderr)
         raise
@@ -442,7 +443,6 @@ def main(argv=None) -> int:
     # parsed args. CLI flags take precedence over config values. Validation is
     # attempted using `jsonschema` when available and `schemas/fuse.config.schema.json`
     # is present at the project root.
-    import json
     from pathlib import Path
     import sys as _sys
 
@@ -451,8 +451,8 @@ def main(argv=None) -> int:
         if not cfg_path:
             return
         try:
-            p = Path(cfg_path)
-            data = json.loads(p.read_text())
+            from src.util.config import load_schema
+            data = load_schema(cfg_path)
         except Exception as e:
             print(f"Warning: failed to read config file {cfg_path}: {e}", file=_sys.stderr)
             return

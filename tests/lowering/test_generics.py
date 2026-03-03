@@ -25,7 +25,6 @@ def test_type_alias_shorthand_and_node_lower():
     assert model is not None
 
     # Verify emitted ONNX shapes: input `x` should have dims [N, features]
-    import onnx
 
     def _matches_name(n, base):
         if n == base:

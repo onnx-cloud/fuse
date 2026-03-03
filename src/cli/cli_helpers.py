@@ -62,7 +62,7 @@ def parse_fuse_file(path: str):
             loc = f"{e.filename or '<input>'}:{e.line or '?'}:{e.column or '?'}"
             ctx = e.context or ""
             msg = f"Parse error at {loc}: {e}\n{ctx}"
-            raise Exception(msg) from e
+            raise ParseError(msg) from e
         raise
 
 def save_onnx(model, path: str) -> None:
@@ -222,7 +222,7 @@ def export_onnx_from_ast(
     ast,
     source_file: Optional[str] = None,
     out_dir: Optional[str] = None,
-    output_base: str = "./tmp/onnx",
+    output_base: str = "./onnx",
     flat: bool = False,
     compact: bool = False,
     # compress/inlines user functions (default False=emit FunctionProto)
@@ -252,7 +252,6 @@ def export_onnx_from_ast(
     optional dependencies are available; otherwise a helpful Exception is raised.
     """
     from pathlib import Path
-    import tempfile
 
     from src.cli.helpers import save_onnx as _save_onnx
     from src.lowering import FuseLowerer
@@ -278,8 +277,8 @@ def export_onnx_from_ast(
         # the common context. This intentionally strips some standalone
         # parser Tree nodes (e.g., bare @type entries) which are not required
         # for lowering the computational graph itself.
-        base_common = [d for d in top_decls if isinstance(d, dict) and d.get("type") != "model"]
-        user_decls = {d.get("name"): d for d in top_decls if isinstance(d, dict) and d.get("name")}
+        [d for d in top_decls if isinstance(d, dict) and d.get("type") != "model"]
+        {d.get("name"): d for d in top_decls if isinstance(d, dict) and d.get("name")}
 
         def _collect_calls_from(node, acc: set):
             if isinstance(node, dict):
@@ -371,7 +370,7 @@ def export_onnx_from_ast(
             raise Exception(f"failed to compute/embed seal: {e}")
 
     # determine filename
-    base_name = (
+    (
         Path(source_file).stem
         if source_file
         else (model.graph.name or "model")
@@ -479,42 +478,12 @@ def _export_pt_from_onnx_model(onnx_model, base: str, dest_dir: str) -> str:
         raise Exception(f"failed to convert ONNX to PyTorch: {e}")
     return pt_path
 
-    # Optional conversion helpers ------------------------------------------------
-
-    # Execute optional conversions when requested
-    try:
-        if tf:
-            # prefer using the in-memory model proto
-            tf_out = _export_tf_model_from_onnx(model, base, out_dir)
-            out_paths.append(tf_out)
-        if tfl:
-            # If TF export was performed we can use its SavedModel; otherwise, create a temporary SavedModel
-            if tf:
-                saved = tf_out
-            else:
-                # create temporary SavedModel via onnx-tf
-                saved = _export_tf_model_from_onnx(model, base, out_dir)
-                # ensure we include the temporary one in outputs so user can inspect it
-                out_paths.append(saved)
-            tfl_out = _export_tflite_from_saved(saved, base, out_dir)
-            out_paths.append(tfl_out)
-        if pt:
-            pt_out = _export_pt_from_onnx_model(model, base, out_dir)
-            out_paths.append(pt_out)
-    except Exception:
-        # Re-raise to surface user-facing conversion errors with context
-        raise
-
-    return out_paths
-
-
 def run_golden_test(path: str):
     """Run golden tests in file and return a summary dict.
 
     Returns: {file, total, passed, failed, skipped?}
     """
     from src.testing import run_fuse_tests
-    from src.parser import ParseError
     from src.lowering.utils import LoweringError
 
     try:

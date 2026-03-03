@@ -5,7 +5,6 @@ user-supplied metadata for serialization into ModelProto.metadata_props.
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional

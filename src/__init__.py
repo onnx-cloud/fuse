@@ -53,14 +53,14 @@ except Exception:
     # Best-effort only; leave __build_time__ as "unknown"
     pass
 # Backwards-compatibility: some tests and older code import modules such as
-# `src.cli_helpers`, `src.cli_io`, and `src.cli_dispatch` directly from the
+# `src.cli_helpers`, `src.cli.io`, and `src.cli_dispatch` directly from the
 # `src` package. Create lazy aliases to the newer `src.cli.*` package modules
 # so both import styles work without duplicating code.
 try:
     import importlib
     import sys
 
-    for _name in ("cli_helpers", "cli_io", "cli_dispatch", "cli_commands"):
+    for _name in ("cli_helpers", "cli_dispatch", "cli_commands"):
         try:
             mod = importlib.import_module(f"src.cli.{_name}")
             globals()[_name] = mod
@@ -70,6 +70,12 @@ try:
         except Exception:
             # best-effort: do not raise on compatibility alias failures
             pass
+    try:
+        mod = importlib.import_module("src.cli.io")
+        globals()["cli_io"] = mod
+        sys.modules.setdefault("src.cli_io", mod)
+    except Exception:
+        pass
     # Ensure `src.cli` package is importable as an attribute on `src`.
     try:
         cli_pkg = importlib.import_module("src.cli")

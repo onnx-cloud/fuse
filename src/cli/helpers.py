@@ -14,13 +14,22 @@ import onnx
 from src.parser import fuse_parser
 
 
-def find_fuse_files(path: str) -> List[str]:
+def find_fuse_files(path: "str | list[str]") -> List[str]:
     """Return a list of .fuse files for a path (file or dir).
 
     - directory -> sorted list of *.fuse files
     - file -> single-element list
     - otherwise -> empty list
-    """
+
+    Accepts either a single string path or a list/tuple of paths; the latter
+    will be recursively expanded. This keeps callers simple and avoids
+    accidental TypeErrors when a list is passed (see docs cmd)."""
+    if isinstance(path, (list, tuple)):
+        out: List[str] = []
+        for p in path:
+            out.extend(find_fuse_files(p))
+        return out
+
     p = Path(path)
     if p.is_dir():
         files = []
@@ -127,3 +136,133 @@ def symbolic_dim_in_type(type_decl) -> bool:
     if isinstance(type_decl, dict):
         dims = type_decl.get("dims")
     return any(not isinstance(d, int) for d in (dims or []))
+
+
+def get_output_path(
+    source_file,
+    target_name,
+    out_dir=None,
+    output_base="./onnx",
+    flat=False,
+    suffix=".onnx",
+):
+    """Compute a deterministic output path for a given source and target."""
+    if out_dir:
+        base = Path(out_dir)
+    else:
+        base = Path(output_base)
+
+    if flat:
+        return str(base / f"{target_name}{suffix}")
+
+    # Replicate nested structure from source file relative to its root
+    try:
+        # Attempt to find a common ancestor (e.g., examples/)
+        p = Path(source_file).resolve()
+        anchor = p.parent
+        while (
+            anchor.parent != anchor
+            and anchor.name != "examples"
+            and anchor.name != "tests"
+        ):
+            anchor = anchor.parent
+        if anchor.parent != anchor:
+            rel_path = p.relative_to(anchor.parent)
+            return str(base / rel_path.with_name(f"{target_name}{suffix}"))
+    except Exception:
+        pass
+
+    # Fallback for non-standard paths
+    return str(base / f"{target_name}{suffix}")
+
+
+def _filter_exportable_graphs(ast):
+    """Filter an AST to include only top-level `graph` or `model` declarations."""
+    return [
+        d
+        for d in ast
+        if isinstance(d, dict) and d.get("type") in ("graph", "model")
+    ]
+
+
+def _format_lowering_error(e: "LoweringError") -> str:
+    """Format a LoweringError with file/line context."""
+    return f"{e}\nFile: {e.file}, Line: {e.line}"
+
+
+def get_exportable_graphs(ast: list) -> list:
+    """Filter an AST for exportable graph/model declarations."""
+    return _filter_exportable_graphs(ast)
+
+
+def export_onnx_from_ast(
+    ast,
+    source_file,
+    out_dir=None,
+    output_base="./onnx",
+    flat=False,
+    compact=False,
+    inline=False,
+    training=False,
+    embed_external_data=False,
+    # Optional extra exports
+    tf=False,
+    tfl=False,
+    pt=False,
+    # seal options
+    seal=False,
+    seal_algo="blake3",
+    seal_inits="merkle",
+    seal_include_external=False,
+    seal_force=False,
+    # global strict mode
+    strict=False,
+    target: Optional[str] = None,
+) -> List[str]:
+    """Lower an AST to one or more ONNX models, returning their paths."""
+    from src.lowering import FuseLowerer
+
+    models = []
+    
+    if target:
+        exportable_decls = [d for d in ast if isinstance(d, dict) and d.get("name") == target]
+    else:
+        exportable_decls = _filter_exportable_graphs(ast)
+
+    # If no explicit graph/model declarations were found, fall back to
+    # lowering the entire AST.  This mirrors the behaviour of
+    # `src.cli.cli_helpers.export_onnx_from_ast` used by other tooling and
+    # ensures we still surface lowering errors for simple files that only
+    # define a `node` (e.g. a small function).  Without this, cmd_compile would
+    # silently return no outputs and no error, confusing callers.
+    if not exportable_decls:
+        exportable_decls = [None]
+
+    for decl in exportable_decls:
+        if decl is None:
+            target_name = Path(source_file).stem
+        else:
+            target_name = decl.get("name")
+        lowerer = FuseLowerer(
+            inline_functions=inline,
+            emit_training=training,
+            embed_external_data=embed_external_data,
+            strict=strict,
+        )
+        # when decl is None we pass entire AST with no specific target so the
+        # lowerer will process whatever is available and propagate any errors.
+        model = lowerer.lower(ast, source_file=source_file, compact=compact, target=target_name if decl is not None else None)
+
+        if model:
+            out_path = get_output_path(
+                source_file,
+                target_name,
+                out_dir=out_dir,
+                output_base=output_base,
+                flat=flat,
+                suffix=".onnx",
+            )
+            save_onnx(model, out_path)
+            models.append(out_path)
+
+    return models

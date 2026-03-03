@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from src.cli import commands
 
@@ -12,7 +11,7 @@ def test_lowering_error_includes_file_and_line(tmp_path):
         node bad(x: f32) -> f32 { return BadOp(x) }
         """
     )
-    res = commands.cmd_onnx([str(p)], out_dir=None)
+    res = commands.cmd_compile([str(p)], out_dir=None)
     assert res, "expected result entry"
     _, outp, err = res[0]
     assert outp is None

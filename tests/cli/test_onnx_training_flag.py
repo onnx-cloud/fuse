@@ -1,17 +1,16 @@
 import onnx
 from src.cli import cli_commands
-from src.parser import fuse_parser
 from pathlib import Path
 from src.lowering.training_checks import validate_training_info
 
 
-def test_cmd_onnx_emits_training_info(tmp_path):
+def test_cmd_compile_emits_training_info(tmp_path):
     src = Path("examples/golden/training.fuse")
     out_dir = tmp_path / "onnx"
     out_dir.mkdir()
 
-    res = cli_commands.cmd_onnx([str(src)], out_dir=str(out_dir), training=True)
-    print("DEBUG: cmd_onnx result:", res)
+    res = cli_commands.cmd_compile([str(src)], out_dir=str(out_dir), training=True)
+    print("DEBUG: cmd_compile result:", res)
     # Expect one result tuple (src, out_path, error)
     assert res and len(res) == 1
     src_path, out_path, err = res[0]

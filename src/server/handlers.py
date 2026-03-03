@@ -1,6 +1,6 @@
 import base64
 import time
-from typing import Dict, List
+from typing import List
 
 from .models import (
     LintRequest,
@@ -128,7 +128,7 @@ def decompile_handler(req: DecompileRequest) -> DecompileResponse:
         ret_scalar = sig.output[1]
         ret_dims = sig.output[2]
         ret_src = f"<{ret_scalar}>[{', '.join(ret_dims)}]" if ret_dims else f"<{ret_scalar}>"
-        args_src = ", ".join(name for (name, _, _) in sig.inputs)
+        ", ".join(name for (name, _, _) in sig.inputs)
 
         src = f"@fuse 0.7\n@opset onnx {sig.opset}\nmodel {sig.name}({params_src}) -> {ret_src} {{\n  /* imported model */\n}}\n"
 

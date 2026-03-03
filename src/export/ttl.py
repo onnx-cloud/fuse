@@ -43,7 +43,7 @@ DTYPE_NAMES: Dict[int, str] = {
     TensorProto.DOUBLE: "float64",
 }
 
-from typing import Sequence, Optional
+from typing import Sequence # noqa: E402
 
 def _ensure_absolute_iri(val: str, *, strict: bool = False, allowed_prefixes: Optional[Sequence[str]] = None) -> str:
     """Accept either an absolute IRI (http/https) or a CURIE (prefix:local).

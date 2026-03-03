@@ -40,9 +40,9 @@ def install_kernel(user=True, name="fuse", display_name="Fuse (ONNX)", make_defa
 
     # Also create an IPython profile startup directory with the Fuse extension loader
     try:
-        from jupyter_client.kernelspec import KernelSpecManager as KSM
+        from jupyter_client.kernelspec import KernelSpecManager as KSM  # noqa: F401
         # Get the installed kernel spec
-        kernel_spec = ksm.get_kernel_spec(name)
+        kernel_spec = ksm.get_kernel_spec(name)  # noqa: F841
         # Create startup dir in the kernel's resource directory
         profile_dir = Path.home() / ".ipython" / "profile_kernel" / "startup"
         profile_dir.mkdir(parents=True, exist_ok=True)
@@ -59,7 +59,7 @@ def install_kernel(user=True, name="fuse", display_name="Fuse (ONNX)", make_defa
             "    if ip is not None:\n"
             "        load_ipython_extension(ip)\n"
             "except Exception as e:\n"
-            "    import sys, traceback\n"
+            "    import traceback\n"
             "    print('Failed to load Fuse IPython extension at kernel startup. The `src` package is not importable in this kernel environment. Please install the package in the kernel environment (e.g., `pip install -e .`).', file=sys.stderr)\n"
             "    traceback.print_exc(file=sys.stderr)\n"
             "    raise\n"
@@ -67,9 +67,9 @@ def install_kernel(user=True, name="fuse", display_name="Fuse (ONNX)", make_defa
         print(f"Created IPython startup script at {startup_script}")
         # Strict validation: ensure the extension is importable in this environment.
         try:
-            from src.jupyter.magics import load_ipython_extension  # type: ignore
-        except Exception as e:
-            import sys, traceback
+            from src.jupyter.magics import load_ipython_extension  # type: ignore  # noqa: F401
+        except Exception:
+            import traceback
             print(
                 "ERROR: Fuse IPython extension could not be imported in this environment. "
                 "Install the package in the Python environment used by the kernel (e.g., `pip install -e .`).",

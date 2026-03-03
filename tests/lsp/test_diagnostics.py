@@ -18,6 +18,6 @@ def test_collects_lowering_diagnostics_for_golden():
     if not diags:
         return
     assert any("Lowering error" in d.message or "Parse error" in d.message for d in diags)
-    has_snippet = any("multi_modal_latent" in d.message or "multi_modal_latent" in d.message for d in diags)
+    any("multi_modal_latent" in d.message or "multi_modal_latent" in d.message for d in diags)
     # If messages are present, at least one should include a sensible location
     assert any(getattr(d, "range", None) and d.range.start.line >= 0 for d in diags)

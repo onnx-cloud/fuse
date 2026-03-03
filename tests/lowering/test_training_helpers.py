@@ -1,6 +1,5 @@
 """Tests for training helper classes."""
 
-import pytest
 from src.lowering.training_helpers import KeyValuePair, TrainingBindingHelper
 
 

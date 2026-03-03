@@ -1,6 +1,5 @@
 import gzip
 import numpy as np
-from pathlib import Path
 from src.parser import fuse_parser
 from src.lowering import FuseLowerer
 

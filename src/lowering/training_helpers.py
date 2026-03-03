@@ -56,11 +56,11 @@ class TrainingBindingHelper:
                     e.key = str(key)
                     e.value = str(value)
                     return
-                except Exception:
+                except (AttributeError, TypeError, ValueError):
                     # If lb is a list (compatibility shim)
                     lb.append(KeyValuePair(str(key), str(value)))
                     return
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             pass
         
         # Fallback: store in instance attribute
@@ -68,7 +68,7 @@ class TrainingBindingHelper:
             if not hasattr(training_info, "_loss_bindings"):
                 object.__setattr__(training_info, "_loss_bindings", [])
             training_info._loss_bindings.append(KeyValuePair(str(key), str(value)))
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             # Last resort: silently ignore if we can't attach
             pass
     
@@ -85,7 +85,7 @@ class TrainingBindingHelper:
             ub = training_info.update_binding.add()
             ub.key = str(key)
             ub.value = str(value)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             # Older ONNX: use fallback
             if not hasattr(training_info, "_update_bindings"):
                 object.__setattr__(training_info, "_update_bindings", [])
@@ -105,7 +105,7 @@ class TrainingBindingHelper:
             lb = getattr(training_info, "loss_binding", None)
             if lb is not None:
                 return list(lb)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             pass
         
         # Fallback
@@ -123,7 +123,7 @@ class TrainingBindingHelper:
         """
         try:
             return list(training_info.update_binding)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             pass
         
         # Fallback

@@ -8,7 +8,7 @@ minor inconsistencies across scripts.
 
 This module centralizes that behavior so the individual script files can stay
 shorter and easier to maintain.  It does **not** attempt to cover every aspect
-of ``golden_onnx_export.py``'s environment logic (that script has additional
+of golden script environment logic (that script had additional
 re-exec fallback when optional deps are missing) but the common bits are here.
 """
 

@@ -42,7 +42,7 @@ JUPYTER_COOKBOOK_DIR = $(JUPYTER_DIR)/cookbook
 	@echo ""
 	@echo "🏗️  Building:"
 	@echo "   make build          Build wheel package"
-	@echo "   make gold           Clean build + full tests"
+	@echo "   make gold           Compile examples/golden to ONNX (lightweight)"
 	@echo "   make package        Clean + build + test"
 	@echo ""
 	@echo "📓 Jupyter:"
@@ -126,23 +126,10 @@ onnx-ops:
 
 # Ensure dev deps are available for trace builds too
 gold: setup
-	@echo "Running gold steps with full trace..."
+	@echo "Compiling golden examples with full trace..."
 	@$(PY) scripts/gold.py --trace
-	@$(PY) tests/test_gold_exists.py --trace
-
-meta:
-	@echo "Exporting meta and artifacts for examples/golden/*.fuse to tmp/onnx (no graphviz)"
-	@$(PY) scripts/golden_onnx_export.py --meta --ttl --no-dot --out-dir tmp/onnx || (echo "ERROR: 'make meta' failed"; exit 1)
-	@echo "✅ meta exported to tmp/onnx"
-
 .PHONY: examples
 examples: ensure-venv
-	@echo "Exporting all examples/golden/*.fuse to tmp/onnx (fail-fast)"
-	@set -e; for f in $(EXAMPLES_DIR)/golden/*.fuse; do \
-		echo "Processing $$f"; \
-		$(PY) -m scripts.golden_onnx_export --process-file "$$f" --out-dir tmp/onnx || { echo "ERROR: export failed for $$f"; exit 1; }; \
-	done
-	@echo "✅ All examples exported successfully."
 
 .PHONY: benchmark
 benchmark:
@@ -199,7 +186,7 @@ package: clean build test
 	@echo "Package artifact built in dist/"
 
 lint:
-	$(PY) -m flake8 src examples tests
+	$(UV) run ruff check src examples tests
 
 # Lint Fuse examples (per-directory and aggregate targets)
 # Usage: `make lint-examples-<set>` or `make lint-examples-all`

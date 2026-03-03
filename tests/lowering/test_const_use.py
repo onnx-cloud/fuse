@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from src.cli import commands
@@ -9,7 +8,7 @@ def test_const_use_lowers_and_validates(tmp_path):
     out_dir = tmp_path / "onnx"
     out_dir.mkdir()
     files = [str(Path("examples/golden/const_use.fuse"))]
-    res = commands.cmd_onnx(files, out_dir=str(out_dir))
+    res = commands.cmd_compile(files, out_dir=str(out_dir))
     # find the generated onnx file
     generated = [p for p in res if p[1] is not None]
     assert generated, "const_use did not generate an ONNX model"

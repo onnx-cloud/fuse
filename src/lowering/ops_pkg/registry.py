@@ -44,3 +44,21 @@ def get_lowerer(op_type: str, domain: str = "", opset: int = 21) -> Optional[Cal
 def registered_ops() -> Dict[Tuple[str, str], int]:
     """Return a copy of registered operators with their minimum opset."""
     return {k: v[1] for k, v in _LOWERERS.items()}
+
+import warnings
+
+def validate_registry():
+    """Check that all expected operators are registered.
+    
+    If lowerer modules fail to import, their operators won't be registered.
+    This validates that key ones are present.
+    """
+    EXPECTED_OPS = {
+        ("Cast", ""),  # from convert
+        ("Add", ""),
+        # Add basic ops we expect to always have
+    }
+    
+    missing = EXPECTED_OPS - set(_LOWERERS.keys())
+    if missing:
+        warnings.warn(f"Missing operator lowerers: {missing}. Some lowering passes might fail.", UserWarning)

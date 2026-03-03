@@ -22,7 +22,7 @@ def _get_domain_from_meta(meta: dict) -> str | None:
         dom = meta.get("module")
     return dom
 
-import onnx
+import onnx  # noqa: E402
 
 
 _safe_re = re.compile(r"[^A-Za-z0-9._-]")
@@ -85,12 +85,14 @@ def artifact_path_for(
     else:
         meta = model_meta or {}
 
-    # Determine name: prefer provided graph/name metadata, else fallback to model.graph.name
-    name = meta.get("name") or meta.get("title")
-    if not name and model is not None and getattr(model, "graph", None) and getattr(model.graph, "name", None):
+    # **only** the graph name is used.  Metadata titles / names are
+    # ignored entirely.  A missing graph name is treated as a fatal error
+    # so callers cannot accidentally rely on implicit defaults.
+    name = None
+    if model is not None and getattr(model, "graph", None) and getattr(model.graph, "name", None):
         name = model.graph.name
     if not name:
-        name = "model"
+        raise ValueError("model graph must have an explicit name")
     name = _sanitize_segment(name)
     # If the name is a qualified dotted name (e.g., 'examples.golden.jepa.encode')
     # prefer the last local component for file naming so emitted artifact names

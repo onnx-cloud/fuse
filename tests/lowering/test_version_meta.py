@@ -1,4 +1,3 @@
-import onnx
 from src.lowering import FuseLowerer
 from src.parser import fuse_parser
 

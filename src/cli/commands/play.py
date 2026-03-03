@@ -1,0 +1,184 @@
+
+from src.parser import ParseError
+from src.lowering.utils import LoweringError
+
+def cmd_zoo(args) -> None:
+    """Simple CLI entry for LocalZoo operations used by tests.
+
+    Supported ops: publish, list, show
+    """
+    import json
+
+    from src.remote_imports import ImportCache
+    from src.zoo.index import extract_embedded_metadata
+    from src.zoo.local import LocalZoo
+
+    root = getattr(args, "root", None) or None
+    zoo = LocalZoo(root)
+
+    op = getattr(args, "op", "list")
+    if op == "publish":
+        # Input may be a local file (`i`) or a spec like name=url
+        inp = getattr(args, "i", None)
+        canonical = getattr(args, "id", None)
+        variant = getattr(args, "variant", None)
+        overwrite = bool(getattr(args, "overwrite", False))
+        metadata = None
+        if getattr(args, "metadata", None):
+            try:
+                metadata = json.loads(args.metadata)
+            except (ValueError, TypeError, OSError, RuntimeError, SyntaxError, ImportError, AttributeError, KeyError, ParseError, LoweringError):
+                metadata = {}
+
+        if inp:
+            entry = zoo.publish(
+                inp,
+                canonical,
+                metadata=metadata,
+                variant=variant,
+                overwrite=overwrite,
+            )
+            print(str(entry.base_path))
+            return
+
+        # Handle remote spec form: name=url
+        if canonical and "=" in canonical:
+            name, url = canonical.split("=", 1)
+            cache = ImportCache()
+            local = cache.fetch(url)
+            entry = zoo.publish(
+                local,
+                name,
+                metadata=metadata,
+                variant=variant,
+                overwrite=overwrite,
+            )
+            print(str(entry.base_path))
+            return
+
+        raise ValueError(
+            "publish requires either --i <path> or id in form name=url"
+        )
+
+    if op == "list":
+        ns = getattr(args, "domain", None)
+        for i in zoo.list_ids(ns):
+            print(i)
+        return
+
+    if op == "show":
+        cid = getattr(args, "id")
+        variant = getattr(args, "variant", None)
+        entry = zoo.read(cid, variant)
+        model = entry.load()
+        meta = extract_embedded_metadata(model, cid, variant)
+        print(json.dumps(meta))
+        return
+
+    raise ValueError(f"unknown zoo op: {op}")
+
+
+def cmd_sandbox(args) -> None:
+    """Run models via sandbox for tests.
+
+    Expects args.op == 'run', args.model (path or zoo id), args.input (json file),
+    args.runtime, args.zoo_root
+    """
+    import json
+    from pathlib import Path
+
+    from src.sandbox import LocalSandbox, ZooSandbox
+    from src.zoo.local import LocalZoo
+
+    op = getattr(args, "op", "run")
+    if op != "run":
+        raise ValueError("sandbox only supports run in tests")
+
+    model = getattr(args, "model")
+    inp = getattr(args, "input", None)
+    runtime = getattr(args, "runtime", "reference")
+    timeout = getattr(args, "timeout", None)
+    zoo_root = getattr(args, "zoo_root", None)
+
+    feeds = {}
+    if inp:
+        feeds = json.loads(Path(inp).read_text(encoding="utf-8"))
+        # convert lists to numpy arrays in sandbox.run — LocalSandbox expects raw arrays
+
+    if zoo_root:
+        zoo = LocalZoo(zoo_root)
+        sb = ZooSandbox(zoo)
+    else:
+        sb = LocalSandbox()
+
+    res = sb.run(model, feeds, runtime=runtime, timeout_s=timeout)
+    # print outputs as json
+    out = {k: v.tolist() for k, v in res.outputs.items()}
+    print(json.dumps(out))
+
+
+def cmd_ebnf(args) -> None:
+    """Emit the runtime EBNF as Markdown to stdout or to a file (via --out).
+
+    The output mirrors the content of `scripts/generate_gold.py`'s EBNF
+    generation: a header, a fenced ```fuse``` block with the grammar body,
+    and an appended terse example from `examples/golden/terse.fuse` when present.
+    """
+    from pathlib import Path
+
+    # Read `src/parser.py` and extract the GRAMMAR triple-quoted string
+
+    ROOT = Path(__file__).resolve().parents[3]
+    parser_src = ROOT / "src" / "parser.py"
+    if not parser_src.exists():
+        raise RuntimeError("parser.py not found")
+    src_text = parser_src.read_text()
+
+    # Extract body of the GRAMMAR triple-quoted string (same as scripts/generate_gold.py)
+    start_marker = "GRAMMAR"
+    i = src_text.find(start_marker)
+    if i == -1:
+        raise RuntimeError("Could not find GRAMMAR in parser.py")
+    first = src_text.find('"""', i)
+    if first == -1:
+        raise RuntimeError("Could not find opening triple quotes for GRAMMAR")
+    second = src_text.find('"""', first + 3)
+    if second == -1:
+        raise RuntimeError("Could not find closing triple quotes for GRAMMAR")
+    grammar = src_text[first + 3 : second].strip()
+
+    header = "# Fuse EBNF Grammar for ONNX\n\nThis file is generated by `fuse` — do not edit by hand.\n\n"
+    content = header + "```fuse\n" + grammar + "\n```\n"
+
+    # Append terse example from examples/golden/terse.fuse when available
+    ROOT = Path(__file__).resolve().parents[3]
+    terse_path = ROOT / "examples" / "golden" / "terse.fuse"
+
+    if terse_path.exists():
+        terse_text = terse_path.read_text()
+        content += "\n## Example: examples/golden/terse.fuse\n\n"
+        content += "```fuse\n" + terse_text.strip() + "\n```\n"
+
+    out = getattr(args, "out", None)
+    if out:
+        p = Path(out)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+        print(f"Wrote EBNF to {p}")
+    else:
+        print(content)
+
+    # Optionally write the canonical AST schema to --asts
+    asts = getattr(args, "asts", None)
+    if asts:
+        schema_src = ROOT / "schemas" / "fuse.ast.schema.json"
+        if not schema_src.exists():
+            raise RuntimeError(f"AST schema source not found: {schema_src}")
+        import json
+
+        data = json.loads(schema_src.read_text())
+        p2 = Path(asts)
+        p2.parent.mkdir(parents=True, exist_ok=True)
+        p2.write_text(json.dumps(data, indent=2, sort_keys=False) + "\n")
+        print(f"Wrote AST schema to {p2}")
+
