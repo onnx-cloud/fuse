@@ -366,13 +366,3 @@ def generate_gradients(ctx) -> Dict[str, Any]:
             added["loss"] = None
 
     return added
-    # Expose existing loss value as a graph output if it exists
-    if "loss" in ctx.value_types:
-        try:
-            ctx.add_output("loss", as_tensor_type(ctx.value_types["loss"]))
-            added["loss"] = "loss"
-        except Exception:
-            # best-effort
-            added["loss"] = None
-
-    return added
