@@ -1715,6 +1715,50 @@ class ParseError(Exception):
         self.context = context
 
 
+def _apply_attr_assign_substitution(s):
+    """Apply @= regex substitution safely, preserving quoted strings.
+    
+    Converts 'name@=val' -> '@name=val' without corrupting string contents.
+    String literals are temporarily replaced with placeholders to avoid
+    replacing @= patterns inside quoted strings.
+    """
+    import re
+    
+    # Extract quoted strings (both single and double quotes)
+    string_literals = []
+    placeholder_prefix = "\x00STRING_LITERAL_"
+    
+    def extract_strings(text):
+        """Replace quoted strings with placeholders."""
+        result = text
+        pattern = r'(\'(?:[^\'\\]|\\.)*\'|"(?:[^"\\]|\\.)*")'
+        
+        def replacer(match):
+            string_literals.append(match.group(0))
+            return f"{placeholder_prefix}{len(string_literals)-1}\x00"
+        
+        result = re.sub(pattern, replacer, result)
+        return result
+    
+    def restore_strings(text):
+        """Restore the original quoted strings."""
+        for i, literal in enumerate(string_literals):
+            placeholder = f"{placeholder_prefix}{i}\x00"
+            text = text.replace(placeholder, literal)
+        return text
+    
+    # Extract strings
+    s_extracted = extract_strings(s)
+    
+    # Apply the @= substitution
+    s_substituted = re.sub(r"([A-Za-z_][A-Za-z0-9_]*)@=", r"@\1=", s_extracted)
+    
+    # Restore strings
+    s_restored = restore_strings(s_substituted)
+    
+    return s_restored
+
+
 class _FuseParserWrapper:
     def __init__(self, grammar):
         self._parser = Lark(grammar, parser="earley")
@@ -1740,12 +1784,15 @@ class _FuseParserWrapper:
                 if line.strip() == "":
                     out.append(line)
                     continue
-                indent = len(line) - len(line.lstrip(" "))
+                # Expand tabs to spaces for consistent indent measurement
+                line_expanded = line.expandtabs(4)
+                indent = len(line_expanded) - len(line_expanded.lstrip(" "))
                 # If the previous output line ended with ':' and the current
                 # line is indented more than that previous header, treat it as
                 # an indented node header and open a brace-delimited block.
                 if out and out[-1].rstrip().endswith(":"):
-                    prev_indent = len(out[-1]) - len(out[-1].lstrip(" "))
+                    prev_line_expanded = out[-1].expandtabs(4)
+                    prev_indent = len(prev_line_expanded) - len(prev_line_expanded.lstrip(" "))
                     if indent > prev_indent:
                         # replace trailing ':' with ' {' on the header line
                         out[-1] = out[-1].rstrip()[:-1] + " {\n"
@@ -1755,7 +1802,7 @@ class _FuseParserWrapper:
                 while stack and indent <= stack[-1]:
                     close_indent = stack.pop()
                     out.append(" " * close_indent + "}\n")
-                out.append(line)
+                out.append(line_expanded)
             # Close any remaining open blocks at EOF
             while stack:
                 close_indent = stack.pop()
@@ -1799,13 +1846,8 @@ class _FuseParserWrapper:
             # into spaced form `gamma @= LN1_gamma` so the arg grammar can
             # consistently recognize it without depending on tokenization
             # ambiguity between the '@' operator and attribute syntax.
-            import re
-
-            # Prefer prefix form '@name=val' to avoid lexer ambiguity
-            # caused by '@' being also an infix operator token. Convert
-            # `name@=val` -> `@name=val` which is recognized by the
-            # existing `attrarg` rule.
-            s3 = re.sub(r"([A-Za-z_][A-Za-z0-9_]*)@=", r"@\1=", s2)
+            # Use the safe substitution that preserves string literals.
+            s3 = _apply_attr_assign_substitution(s2)
             tree = self._parser.parse(s3)
             return self._transformer.transform(tree)
         except Exception as e:
