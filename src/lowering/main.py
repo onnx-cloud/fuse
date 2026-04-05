@@ -1624,20 +1624,15 @@ class FuseLowerer:
                 or expr in ctx.initializers
             ):
                 return expr, types.get(expr) or ctx.value_types.get(expr)
-            # DEBUG: detect cases where operator names are being treated as literals
-            if expr in ("MatMul", "Cast", "Greater"):
-                # debugging helper: unexpected operator names treated as literals
-                logger.debug("stray operator string treated as literal: %s", expr)
-                logger.debug("env keys: %s", list(env.keys()))
-                logger.debug("ctx.value_types keys: %s", list(ctx.value_types.keys())[:20])
-                try:
-                    import traceback
-
-                    traceback.print_stack(file=None)
-                except Exception:
-                    pass
-            name = ctx.add_literal(expr, as_tensor_type(type_hint))
-            return name, as_tensor_type(type_hint)
+            
+            # At this point, the identifier is unresolved. Raise a clear error
+            # instead of silently treating it as a string literal.
+            raise LoweringError(
+                f"Undefined identifier: '{expr}'. "
+                f"Expected a parameter, variable, function, or type name. "
+                f"Available values: {sorted(set(list(env.keys())[:10] + list(ctx.value_types.keys())[:10]))}.",
+                source=self._current_source,
+            )
 
         if isinstance(expr, bool):
             lit_type = {"scalar": "bool", "dims": []}
