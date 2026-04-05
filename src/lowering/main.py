@@ -1355,7 +1355,6 @@ class FuseLowerer:
                                     types[str(tgt)] = t
                             return None, None
                         elif multi:
-                            from .utils import LoweringError
                             raise LoweringError(
                                 f"call returned {len(multi)} values; assignment expects {len(targets)} targets",
                                 source=self._current_source,
@@ -1538,7 +1537,6 @@ class FuseLowerer:
                 if idx < len(multi):
                     nm, t = multi[idx]
                     return nm, t
-                from .utils import LoweringError
                 raise LoweringError(
                     f"call returned {len(multi)} values; selection index {idx} out of range",
                     source=self._current_source,
@@ -1546,7 +1544,6 @@ class FuseLowerer:
             # Single-output call: only valid to select index 0
             if idx == 0:
                 return val, typ
-            from .utils import LoweringError
             raise LoweringError(
                 "attempt to select non-zero index from single-output call",
                 source=self._current_source,

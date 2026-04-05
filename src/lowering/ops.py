@@ -831,6 +831,25 @@ class OpsLowerer:
             if inferred:
                 type_hint = inferred
 
+        # Inject required 'shape' attribute for zero-input random ops
+        if op_type in ("RandomUniform", "RandomNormal") and not inputs and "shape" not in attrs and type_hint:
+            if isinstance(type_hint, dict) and "dims" in type_hint:
+                dims = type_hint.get("dims", [])
+                if dims:
+                    # Convert dims to list of ints, handling both int and str (symbolic) dims
+                    shape_attr = []
+                    for d in dims:
+                        if isinstance(d, int):
+                            shape_attr.append(d)
+                        elif isinstance(d, str):
+                            # Try to convert string to int, otherwise skip symbolic dims for now
+                            try:
+                                shape_attr.append(int(d))
+                            except (ValueError, TypeError):
+                                pass
+                    if shape_attr:
+                        attrs["shape"] = shape_attr
+
         # Determine node outputs
         node_outputs, body_graph = self._determine_node_outputs(
             output_name, op_type, attrs
@@ -1591,9 +1610,28 @@ class OpsLowerer:
         if else_body:
             else_graph = self._lower_if_block_body(else_body, ctx, env, types)
         else:
-            # Create empty else body if not provided
+            # Create else body that passes through inputs matching then branch outputs
             else_ctx = GraphContext(name="__if_else", opset=ctx.opset)
             else_ctx._preserve_local_input_names = True
+            
+            # Create inputs/outputs matching then branch
+            for inp in then_graph.input:
+                else_ctx.inputs[inp.name] = inp
+            
+            # Create identity nodes to match then output count
+            then_output_names = [o.name for o in then_graph.output]
+            for out_name in then_output_names:
+                # Find matching input or create a pass-through
+                matching_input = next((i for i in then_graph.input if i.name == out_name), None)
+                if matching_input:
+                    else_ctx.add_output(out_name, matching_input.type)
+                else:
+                    # Use first input as pass-through for unmatched outputs
+                    if then_graph.input:
+                        first_input = then_graph.input[0]
+                        else_ctx.add_node("Identity", [first_input.name], [out_name])
+                        else_ctx.add_output(out_name, first_input.type)
+            
             else_graph = else_ctx.build_model().graph
         
         attrs = {"then_branch": then_graph, "else_branch": else_graph}

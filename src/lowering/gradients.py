@@ -100,17 +100,39 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                 dC = grads.get(C)
                 if not dC:
                     continue
+                
+                # Compute transpose permutation based on input rank
+                # For 2D: perm=[1,0], for 3D: perm=[0,2,1], etc.
+                A_type = ctx.value_types.get(A, {})
+                A_dims = A_type.get("dims", [])
+                B_type = ctx.value_types.get(B, {})
+                B_dims = B_type.get("dims", [])
+                
+                # Compute perm for transposing B: swap last two dimensions
+                B_perm = list(range(len(B_dims)))
+                if len(B_perm) >= 2:
+                    B_perm[-2], B_perm[-1] = B_perm[-1], B_perm[-2]
+                else:
+                    B_perm = [1, 0]  # fallback for unclear shapes
+                
+                # Compute perm for transposing A: swap last two dimensions
+                A_perm = list(range(len(A_dims)))
+                if len(A_perm) >= 2:
+                    A_perm[-2], A_perm[-1] = A_perm[-1], A_perm[-2]
+                else:
+                    A_perm = [1, 0]  # fallback for unclear shapes
+                
                 # dA = MatMul(dC, Transpose(B))
                 tb = ctx._next_const_name()
                 try:
-                    ctx.add_node("Transpose", [B], [tb], attrs={"perm": [1, 0]})
+                    ctx.add_node("Transpose", [B], [tb], attrs={"perm": B_perm})
                     try:
                         ctx.nodes[-1].domain = training_domain
                     except (AttributeError, IndexError) as e:
                         logger.debug(f"Could not set domain on Transpose node: {e}")
                 except (ValueError, TypeError) as e:
                     logger.debug(f"Failed to add Transpose with domain, using default: {e}")
-                    ctx.add_node("Transpose", [B], [tb])
+                    ctx.add_node("Transpose", [B], [tb], attrs={"perm": B_perm})
                 dA = ctx._next_const_name()
                 ctx.add_node("MatMul", [dC, tb], [dA])
                 try:
@@ -132,13 +154,13 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                 # dB = MatMul(Transpose(A), dC)
                 ta = ctx._next_const_name()
                 try:
-                    ctx.add_node("Transpose", [A], [ta], attrs={"perm": [1, 0]})
+                    ctx.add_node("Transpose", [A], [ta], attrs={"perm": A_perm})
                     try:
                         ctx.nodes[-1].domain = training_domain
                     except Exception:
                         pass
                 except Exception:
-                    ctx.add_node("Transpose", [A], [ta])
+                    ctx.add_node("Transpose", [A], [ta], attrs={"perm": A_perm})
                 dB = ctx._next_const_name()
                 ctx.add_node("MatMul", [ta, dC], [dB])
                 try:
@@ -158,19 +180,58 @@ def generate_gradients(ctx) -> Dict[str, Any]:
 
             elif op == "Add":
                 # C = Add(A,B) -> dA += dC, dB += dC
+                # Note: Handle broadcasting - if A or B were broadcast, their gradients must be contracted
                 A = n.input[0]
                 B = n.input[1]
                 C = n.output[0]
                 dC = grads.get(C)
                 if not dC:
                     continue
-                for X in (A, B):
+                
+                # Get shapes to detect broadcasting
+                A_type = ctx.value_types.get(A, {})
+                A_dims = A_type.get("dims", [])
+                B_type = ctx.value_types.get(B, {})
+                B_dims = B_type.get("dims", [])
+                dC_type = ctx.value_types.get(dC, {})
+                dC_dims = dC_type.get("dims", [])
+                
+                for X, X_dims in [(A, A_dims), (B, B_dims)]:
+                    grad_for_X = dC
+                    
+                    # If X was broadcast (fewer dims than output), reduce gradient to original shape
+                    if X_dims and dC_dims and len(X_dims) < len(dC_dims):
+                        # Determine which axes to reduce over
+                        # Given output shape dC_dims, need to reduce to X_dims
+                        num_new_axes = len(dC_dims) - len(X_dims)
+                        axes_to_reduce = list(range(num_new_axes))
+                        
+                        # Also check for 1-dimension broadcasts (1 in X_dims vs > 1 in dC_dims)
+                        for i in range(len(X_dims)):
+                            orig_i = num_new_axes + i
+                            if orig_i < len(dC_dims) and X_dims[i] == 1 and dC_dims[orig_i] != 1:
+                                axes_to_reduce.append(orig_i)
+                        
+                        # Insert ReduceSum if needed
+                        if axes_to_reduce:
+                            reduced = ctx._next_const_name()
+                            ctx.add_node("ReduceSum", [dC], [reduced], attrs={"axes": axes_to_reduce, "keepdims": 1})
+                            try:
+                                ctx.nodes[-1].domain = training_domain
+                            except Exception:
+                                pass
+                            grad_for_X = reduced
+                    
                     if X in grads:
                         s = ctx._next_const_name()
-                        ctx.add_node("Add", [grads[X], dC], [s])
+                        ctx.add_node("Add", [grads[X], grad_for_X], [s])
+                        try:
+                            ctx.nodes[-1].domain = training_domain
+                        except Exception:
+                            pass
                         grads[X] = s
                     else:
-                        grads[X] = dC
+                        grads[X] = grad_for_X
 
             else:
                 # Unsupported ops: do not propagate
@@ -346,20 +407,19 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                     added["opt_updates"][param] = outputs[0]
                     added["optimizer_nodes"].append(node_name)
                 except Exception:
-                    pass
-                # Build optimizer inputs: [param, grad, <state...>]
-                inputs = [param, g] + state_inputs
-                try:
-                    # second attempt to add the same op with canonical inputs
-                    node_name = ctx.add_node(op_name, inputs, [opt_out], attrs=attrs)
+                    # Fallback: Build optimizer inputs with canonical ordering: [param, grad, <state...>]
+                    inputs = [param, g] + state_inputs
                     try:
-                        ctx.nodes[-1].domain = training_domain
+                        # second attempt to add the same op with canonical inputs
+                        node_name = ctx.add_node(op_name, inputs, [opt_out], attrs=attrs)
+                        try:
+                            ctx.nodes[-1].domain = training_domain
+                        except Exception:
+                            pass
+                        added["opt_updates"][param] = opt_out
+                        added["optimizer_nodes"].append(node_name)
                     except Exception:
                         pass
-                    added["opt_updates"][param] = opt_out
-                    added["optimizer_nodes"].append(node_name)
-                except Exception:
-                    pass
 
     # Expose existing loss value as a graph output if it exists
     if "loss" in ctx.value_types:

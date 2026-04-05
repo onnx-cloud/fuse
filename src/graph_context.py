@@ -516,12 +516,13 @@ class GraphContext:
                         raise Exception("invalid endian specifier; expected 'little' or 'big'")
                     dtype = np.dtype(np_dtype)
                     if (endian == "big") != (dtype.byteorder == ">"):
-                        # create a dtype with requested endianness
-                        dtype = dtype.newbyteorder('>') if endian == "big" else dtype.newbyteorder('<')
-                    arr = np.frombuffer(raw, dtype=dtype, count=count)
-                    # Convert to native endianness (numpy/onnx helpers expect native-endian arrays).
-                    # Use the mapped numpy dtype (e.g., np.float32) to coerce byte order.
-                    arr = arr.astype(np_dtype)
+                        # read with native byte order, then byte-swap if needed
+                        arr = np.frombuffer(raw, dtype=np_dtype, count=count).copy()
+                        arr.byteswap(inplace=True)
+                        arr = arr.astype(np_dtype)
+                    else:
+                        # byte order matches, read directly
+                        arr = np.frombuffer(raw, dtype=np_dtype, count=count)
                     if dims:
                         arr = arr.reshape(tuple(dims))
                     tensor = numpy_helper.from_array(arr, name)
