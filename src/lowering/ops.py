@@ -5,10 +5,6 @@ from src.graph_context import GraphContext, as_tensor_type, get_model_domain as 
 from src.lowering.utils import LoweringError
 from src.onnx_schema import normalize_domain_and_op, require_op_schema
 
-# Suppress F811 redefinition warnings temporarily while we deduplicate
-# duplicate helper implementations across this module. See BUG-007, BUG-008.
-# flake8: noqa: F811
-
 logger = logging.getLogger(__name__)
 
 
@@ -192,67 +188,6 @@ class OpsLowerer:
         if not import_outputs:
             raise ValueError(f"imported model '{op_type}' has no outputs")
         return import_outputs[0], ctx.value_types.get(import_outputs[0])
-
-    def _normalize_attributes(self, attrs, op_type, schema):
-        from onnx import TensorProto
-
-        # Normalize convenience `value_*` kwargs
-        if any(k.startswith("value_") for k in attrs.keys()):
-            for k in list(attrs.keys()):
-                if not k.startswith("value_"):
-                    continue
-                v = attrs.pop(k)
-                name = self._lowerer.ctx._next_const_name()
-                if k == "value_bool":
-                    tp, vals, shape = TensorProto.BOOL, [bool(v)], []
-                elif k in ("value_int", "value_ints"):
-                    tp, vals, shape = (
-                        TensorProto.INT64,
-                        list(v) if isinstance(v, (list, tuple)) else [int(v)],
-                        [len(v)] if isinstance(v, (list, tuple)) else [],
-                    )
-                elif k in ("value_float", "value_floats"):
-                    tp, vals, shape = (
-                        TensorProto.FLOAT,
-                        (
-                            list(v)
-                            if isinstance(v, (list, tuple))
-                            else [float(v)]
-                        ),
-                        [len(v)] if isinstance(v, (list, tuple)) else [],
-                    )
-                elif k in ("value_string", "value_strings"):
-                    tp, vals, shape = (
-                        TensorProto.STRING,
-                        [
-                            s.encode("utf-8")
-                            for s in (
-                                v if isinstance(v, (list, tuple)) else [v]
-                            )
-                        ],
-                        [len(v)] if isinstance(v, (list, tuple)) else [],
-                    )
-                else:
-                    attrs[k] = v
-                    continue
-                attrs["value"] = self._lowerer.helper.make_tensor(
-                    name, int(tp), shape, vals
-                )
-
-        # Normalize single int to list for INTS attributes
-        attr_schema = getattr(schema, "attributes", {}) or {}
-        for aname, aval in list(attrs.items()):
-            a_schema = attr_schema.get(aname)
-            if a_schema:
-                t_name = getattr(a_schema.type, "name", str(a_schema.type))
-                if "INTS" in t_name.upper() and isinstance(aval, int):
-                    attrs[aname] = [aval]
-                elif (
-                    "INT" == t_name.upper()
-                    and isinstance(aval, list)
-                    and len(aval) == 1
-                ):
-                    attrs[aname] = aval[0]
 
     def _lower_graph_attributes(self, attrs, ctx, env, op_type=None):
         for aname, aval in list(attrs.items()):

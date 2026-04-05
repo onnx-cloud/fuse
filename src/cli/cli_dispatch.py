@@ -1,7 +1,7 @@
 """Dispatch parsed argparse args to testable command handlers.
 
 This module centralizes CLI printing and exit code semantics while delegating
-logic to the `src.cli_commands` and helper modules. Returning explicit exit
+logic to handlers in the `src.cli.commands` package. Returning explicit exit
 codes makes testing deterministic.
 """
 
@@ -11,7 +11,12 @@ import json
 import os
 import types
 
-from src.cli import cli_commands
+# Import command handlers directly from src.cli.commands package
+# (no longer import the deprecated shim via src.cli.cli_commands)
+from src.cli.commands import (
+    cmd_verify, cmd_lint, cmd_compile, cmd_docs, cmd_ttl, cmd_inspect,
+    cmd_graphviz, cmd_decompile, cmd_metrics, cmd_run, cmd_golden, cmd_models, 
+)
 # Defer importing heavy helpers until runtime to avoid optional deps at import time
 # (e.g., onnx) when tests only exercise argument parsing.
 try:
@@ -40,7 +45,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     if cmd == "verify":
         files = cli_helpers.find_fuse_files(args.f)
         ok = True
-        for p, err in cli_commands.cmd_verify(files):
+        for p, err in cmd_verify(files):
             if err:
                 print(f"[FAIL] {p} - {err}")
                 ok = False
@@ -51,7 +56,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # LINT
     if cmd == "lint":
         files = cli_helpers.find_fuse_files(args.f)
-        messages = cli_commands.cmd_lint(
+        messages = cmd_lint(
             files,
             fail_on_warn=getattr(args, "fail_on_warn", False),
             check_remote=getattr(args, "check_remote", False),
@@ -111,7 +116,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # COMPILE (formerly 'onnx')
     if cmd == "compile":
         files = cli_helpers.find_fuse_files(getattr(args, "f", []))
-        res = cli_commands.cmd_compile(
+        res = cmd_compile(
             files,
             out_dir=args.o,
             output_base=getattr(args, "output_base", "./onnx"),
@@ -160,7 +165,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
         # if docs flag set, invoke docs on the compiled ONNX models
         if getattr(args, "docs", False) and compiled_paths:
             # always enable md/ttl/dot/ast when compile is invoked with --docs
-            doc_res = cli_commands.cmd_docs(
+            doc_res = cmd_docs(
                 compiled_paths,
                 out_dir=getattr(args, "o", None),
                 md=True,
@@ -234,7 +239,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
         if not files:
             print("No ONNX files specified. Use -f/--files to provide ONNX models.")
             return 1
-        res = cli_commands.cmd_ttl(
+        res = cmd_ttl(
             files,
             out=getattr(args, "o", None),
             ns=getattr(args, "ns", ""),
@@ -254,7 +259,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # GRAPHVIZ
     if cmd == "dot":
         files = cli_helpers.find_fuse_files(args.f)
-        res = cli_commands.cmd_graphviz(
+        res = cmd_graphviz(
             files,
             dot_dir=getattr(args, "dot", None),
             render=getattr(args, "render", False),
@@ -281,7 +286,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
         files = getattr(args, "f", []) or []
         # allow single output dir via -o/--out
         out = getattr(args, "o", None)
-        res = cli_commands.cmd_inspect(
+        res = cmd_inspect(
             files,
             out_dir=out,
             dot=getattr(args, "dot", False),
@@ -305,7 +310,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     if cmd == "docs":
         files = getattr(args, "f", []) or []
         out = getattr(args, "o", None)
-        res = cli_commands.cmd_docs(
+        res = cmd_docs(
             files,
             out_dir=out,
             md=getattr(args, "md", False),
@@ -340,7 +345,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
         else:
             files = cli_helpers.find_fuse_files([_f])
         out = getattr(args, "o", None)
-        res = cli_commands.cmd_decompile(
+        res = cmd_decompile(
             files,
             out_dir=out,
             fuse=getattr(args, "fuse", True),
@@ -362,7 +367,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # METRICS
     if cmd == "meta":
         files = cli_helpers.find_fuse_files(getattr(args, "f", []))
-        res = cli_commands.cmd_metrics(files)
+        res = cmd_metrics(files)
         ok = True
         for src, outs, err in res:
             if err:
@@ -377,7 +382,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # RUN
     if cmd == "run":
         files = cli_helpers.find_fuse_files(args.f)
-        res = cli_commands.cmd_run(
+        res = cmd_run(
             files,
             input_path=getattr(args, "input"),
             output=getattr(args, "output", None),
@@ -403,7 +408,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
     # GOLDEN
     if cmd == "golden":
         files = cli_helpers.find_fuse_files(args.f)
-        res = cli_commands.cmd_golden(
+        res = cmd_golden(
             files,
             quiet=getattr(args, "quiet", False),
             fail_fast=getattr(args, "fail_fast", False),
@@ -469,7 +474,7 @@ def dispatch(args: types.SimpleNamespace) -> int:
                 files = [str(f) for f in p.rglob("*.fuse")]
             elif p.is_file() and str(p).endswith(".fuse"):
                 files = [str(p)]
-        res = cli_commands.cmd_models(
+        res = cmd_models(
             files,
             root=getattr(args, "root", None),
             refresh_cache=getattr(args, "refresh_cache", False),

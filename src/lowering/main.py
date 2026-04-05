@@ -815,8 +815,8 @@ class FuseLowerer:
         model_proto = sub_ctx.build_model()
         g = model_proto.graph
         # compute a domain for this function.  Use the declared model
-        # domain (fallback to deprecated module) or a stable sentinel so
-        # custom functions never live in the empty/builtin domain.
+        # domain or a stable sentinel so custom functions never live in the
+        # empty/builtin domain.
         func_domain = _get_model_domain(ctx) or "fuse.local"
 
         func = FunctionProto()

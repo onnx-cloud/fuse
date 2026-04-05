@@ -1,6 +1,9 @@
+import logging
 from typing import Dict, Any
 
 from src.graph_context import as_tensor_type
+
+logger = logging.getLogger(__name__)
 
 
 def generate_gradients(ctx) -> Dict[str, Any]:
@@ -54,10 +57,10 @@ def generate_gradients(ctx) -> Dict[str, Any]:
             ctx.add_node("GenerateGradients", ["loss"], grad_names, attrs={"params": json.dumps(params_list)})
             try:
                 ctx.nodes[-1].domain = training_domain
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except (AttributeError, IndexError) as e:
+                logger.debug(f"Could not set training domain on GenerateGradients node: {e}")
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as e:
+            logger.warning(f"Failed to add GenerateGradients node: {e}")
 
     if loss_present:
         # Create a scalar '1.0' literal to seed dloss
@@ -72,8 +75,8 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                 qname = (ctx.scope_display or ctx.name) + ".step"
                 step_name = ctx.add_literal(0, {"scalar": "i64", "dims": []}, name=qname)
                 ctx.model_metadata.setdefault("training", {})["step_literal"] = step_name
-        except Exception:
-            pass
+        except (KeyError, TypeError, AttributeError) as e:
+            logger.debug(f"Could not add step input literal: {e}")
         # Map any graph-visible outputs that look like 'loss' to the seed
         grads = {}
         for out_name in list(ctx.outputs.keys()):
@@ -103,24 +106,25 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                     ctx.add_node("Transpose", [B], [tb], attrs={"perm": [1, 0]})
                     try:
                         ctx.nodes[-1].domain = training_domain
-                    except Exception:
-                        pass
-                except Exception:
+                    except (AttributeError, IndexError) as e:
+                        logger.debug(f"Could not set domain on Transpose node: {e}")
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Failed to add Transpose with domain, using default: {e}")
                     ctx.add_node("Transpose", [B], [tb])
                 dA = ctx._next_const_name()
                 ctx.add_node("MatMul", [dC, tb], [dA])
                 try:
                     ctx.nodes[-1].domain = training_domain
-                except Exception:
-                    pass
+                except (AttributeError, IndexError) as e:
+                    logger.debug(f"Could not set domain on MatMul node: {e}")
                 # accumulate into grads[A]
                 if A in grads:
                     s = ctx._next_const_name()
                     ctx.add_node("Add", [grads[A], dA], [s])
                     try:
                         ctx.nodes[-1].domain = training_domain
-                    except Exception:
-                        pass
+                    except (AttributeError, IndexError) as e:
+                        logger.debug(f"Could not set domain on Add node: {e}")
                     grads[A] = s
                 else:
                     grads[A] = dA

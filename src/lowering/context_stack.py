@@ -1,5 +1,8 @@
 """Simple stack of contexts to manage nested scopes during lowering."""
+import logging
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class ContextStack:
@@ -112,8 +115,9 @@ class EnvDict(dict):
         try:
             # attempt to remove from the current frame dict directly
             self._stack.current().pop(key, None)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            # Stack may be empty or unavailable; non-critical
+            logger.debug(f"Could not pop from context stack: {e}")
         return val
 
     def update(self, other: Dict[str, Any]) -> None:

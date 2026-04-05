@@ -102,8 +102,8 @@ def artifact_path_for(
             fname = f"{fname}--{_sanitize_segment(variant)}"
         return str(Path(base) / f"{fname}.onnx")
 
-    # Domain: prefer explicit metadata keys (canonical 'domain', legacy 'module').
-    domain = _get_domain_from_meta(meta) or meta.get("domain")
+    # Domain: extract from metadata.
+    domain = _get_domain_from_meta(meta)
     if not domain and model is not None:
         domain = getattr(model, "domain", None)
     if not domain:

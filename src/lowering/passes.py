@@ -388,7 +388,17 @@ def _apply_type_aliases(node: Any, aliases: Dict[str, Any]) -> Any:
 # ---------------------------------------------------------------------------
 
 def lower_ast(ast: Any, builder: Any) -> None:
-    """Run the full normalization → typing → graph-lowering pipeline."""
+    """Run the full normalization → typing → graph-lowering pipeline.
+    
+    This is the canonical entry point for running all three pipeline passes
+    in order. It ensures the passes are executed in the correct sequence:
+    1. NormalizationPass: lambda normalization, type-alias resolution
+    2. TypeShapePass: type propagation through AST expressions  
+    3. GraphLoweringPass: structural validation and diagnostics
+    
+    Used by tests and external tools. The main FuseLowerer also runs the same
+    passes in the same order (see src/lowering/main.py lower() method).
+    """
     norm = NormalizationPass().run(ast)
     typed = TypeShapePass().run(norm)
     GraphLoweringPass().run(typed, builder)

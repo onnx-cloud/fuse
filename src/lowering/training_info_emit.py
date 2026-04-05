@@ -80,7 +80,9 @@ def emit_training_info(ctx, grad_summary: Dict[str, List]) -> None:
     explicit_alg = None
     try:
         explicit_alg = ctx.model_metadata.get("training", {}).get("algorithm_graph")
-    except Exception:
+    except (KeyError, TypeError, AttributeError) as e:
+        import logging
+        logging.getLogger(__name__).debug(f"Could not extract algorithm_graph from metadata: {e}")
         explicit_alg = None
     if not opt_updates and not explicit_alg:
         return

@@ -92,8 +92,22 @@ def test_fused_const_emits_external_files(tmp_path: Path):
     ext = json.loads(md["external_files"])
     assert ext and ext[0]["init_name"] == "big"
     assert str(data) in ext[0]["src"]
-    # MISSING-006: TODO - verify model initializers actually match external data file
-    # (Currently only checks metadata reference; should verify data integrity)
+
+    # Verify the model actually contains an initializer that references
+    # external data with the correct location and data_location flag.
+    ext_inits = [
+        init for init in model.graph.initializer
+        if init.data_location == TensorProto.EXTERNAL
+    ]
+    assert ext_inits, "expected at least one externally-referenced initializer"
+    init = ext_inits[0]
+    # The external_data entries should contain a "location" key pointing
+    # to the data file name.
+    ext_data_map = {e.key: e.value for e in init.external_data}
+    assert "location" in ext_data_map, (
+        f"initializer external_data missing 'location'; keys={list(ext_data_map)}"
+    )
+    assert ext_data_map["location"] == "data.bin"
 
 
 def test_quantize_annotation_emits_quantize_nodes():
