@@ -147,8 +147,6 @@ def dispatch(args: types.SimpleNamespace) -> int:
             strict=getattr(args, "strict", False),
         )
         ok = True
-        # collect compiled ONNX paths for optional docs step
-        compiled_paths: list[str] = []
         for src, outp, err in res:
             if err:
                 print(f"[FAIL] {src} - {err}")
@@ -158,15 +156,13 @@ def dispatch(args: types.SimpleNamespace) -> int:
                 if isinstance(outp, list):
                     for p in outp:
                         print(p)
-                        compiled_paths.append(p)
                 elif outp:
                     print(outp)
-                    compiled_paths.append(outp)
-        # if docs flag set, invoke docs on the compiled ONNX models
-        if getattr(args, "docs", False) and compiled_paths:
+        # if docs flag set, invoke docs on the source files (not compiled ONNX)
+        if getattr(args, "docs", False) and files:
             # always enable md/ttl/dot/ast when compile is invoked with --docs
             doc_res = cmd_docs(
-                compiled_paths,
+                files,
                 out_dir=getattr(args, "o", None),
                 md=True,
                 ttl=True,
