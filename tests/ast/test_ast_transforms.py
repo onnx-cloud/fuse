@@ -1,6 +1,9 @@
+import pytest
+
+
 def test_const_folding_basic():
     # TODO: build small AST with constant ops and assert folding result
-    assert True
+    pytest.skip("MISSING-005: Not yet implemented - constant folding evaluation")
 
 
 def test_name_allocation_is_deterministic(stable_namer):

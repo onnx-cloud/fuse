@@ -92,7 +92,8 @@ def test_fused_const_emits_external_files(tmp_path: Path):
     ext = json.loads(md["external_files"])
     assert ext and ext[0]["init_name"] == "big"
     assert str(data) in ext[0]["src"]
-    # TODO: model initializers should match data file
+    # MISSING-006: TODO - verify model initializers actually match external data file
+    # (Currently only checks metadata reference; should verify data integrity)
 
 
 def test_quantize_annotation_emits_quantize_nodes():
