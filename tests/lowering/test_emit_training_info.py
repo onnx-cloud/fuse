@@ -42,3 +42,38 @@ def test_grad_output_passes_through_producer():
         for n in model.graph.node
     )
     assert not identity_produces_grad
+
+
+def test_emit_training_info_includes_optimizer_state_outputs():
+    from onnx import helper, TensorProto
+    from src.lowering.training_info_emit import emit_training_info
+    from src.graph_context import GraphContext
+
+    ctx = GraphContext(name="fuse")
+    init = helper.make_tensor(name="W", data_type=TensorProto.FLOAT, dims=[2, 2], vals=[1.0, 0.0, 0.0, 1.0])
+    ctx.initializers["W"] = init
+    ctx.value_types["W"] = {"scalar": "f32", "dims": [2, 2]}
+
+    node = helper.make_node(
+        "Adam",
+        ["W", "W.grad", "lr"],
+        ["W.opt", "W.m", "W.v"],
+        name="AdamOptimizer",
+    )
+    try:
+        node.domain = "ai.onnx.preview.training"
+    except Exception:
+        pass
+    ctx.nodes.append(node)
+
+    grad_summary = {"opt_updates": {"W": "W.opt"}, "optimizer_nodes": ["AdamOptimizer"]}
+    emit_training_info(ctx, grad_summary)
+
+    assert getattr(ctx, "_training_info", None)
+    ti = ctx._training_info[-1]
+    alg = ti.algorithm
+    output_names = {o.name for o in alg.output}
+
+    assert "W.opt" in output_names
+    assert "W.m" in output_names
+    assert "W.v" in output_names

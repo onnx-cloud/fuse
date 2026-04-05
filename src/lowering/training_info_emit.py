@@ -226,45 +226,28 @@ def emit_training_info(ctx, grad_summary: Dict[str, List]) -> None:
                     pass
     except Exception:
         pass
-        # Per-node outputs: add optimizer update outputs and any 'loss' outputs
+
+    # Per-node outputs: add all optimizer outputs produced by the recorded
+    # algorithm nodes. This ensures optimizer state outputs such as `m`/`v`
+    # are preserved in the emitted TrainingInfo algorithm graph.
+    for n in nodes:
         for out in n.output:
-            if out in raw_opt_outs or _strip_scope(out, ctx) in stripped_opt_outs:
-                # output is an optimizer update target; create a value-info
-                base = _strip_scope(out, ctx)
-                # Prefer explicit type mappings; fall back to the underlying
-                # parameter's type when the output name is a qualified variant
-                # (e.g., 'x.opt' -> 'x').
-                t = ctx.value_types.get(out) or ctx.value_types.get(base)
-                if not t:
-                    if "." in base:
-                        candidate = base.rsplit(".", 1)[0]
-                        t = ctx.value_types.get(candidate)
-                if not t:
-                    t = {"scalar": "f32", "dims": []}
-                try:
-                    vi = helper.make_tensor_value_info(
-                        base,
-                        fuse_dtype_to_onnx(t.get("scalar") or DEFAULT_SCALAR),
-                        t.get("dims") or [],
-                    )
-                    alg_outputs[base] = vi
-                except Exception:
-                    pass
-            else:
-                # include any outputs that look like a loss symbol so they can
-                # be bound to model loss (e.g., 'loss' outputs from optimizers)
-                stripped_out = _strip_scope(out, ctx)
-                if "loss" in str(out).lower() or "loss" in str(stripped_out).lower():
-                    t = ctx.value_types.get(out) or ctx.value_types.get(stripped_out) or {"scalar": "f32", "dims": []}
-                    try:
-                        vi = helper.make_tensor_value_info(
-                            stripped_out,
-                            fuse_dtype_to_onnx(t.get("scalar") or DEFAULT_SCALAR),
-                            t.get("dims") or [],
-                        )
-                        alg_outputs[stripped_out] = vi
-                    except Exception:
-                        pass
+            base = _strip_scope(out, ctx)
+            t = ctx.value_types.get(out) or ctx.value_types.get(base)
+            if not t and "." in base:
+                candidate = base.rsplit(".", 1)[0]
+                t = ctx.value_types.get(candidate)
+            if not t:
+                t = {"scalar": "f32", "dims": []}
+            try:
+                vi = helper.make_tensor_value_info(
+                    base,
+                    fuse_dtype_to_onnx(t.get("scalar") or DEFAULT_SCALAR),
+                    t.get("dims") or [],
+                )
+                alg_outputs[base] = vi
+            except Exception:
+                pass
 
     # Ensure any 'loss' outputs that were missed are included
     try:
