@@ -19,7 +19,10 @@ node algebraic(a: f32) -> f32 {{ a }}
     p = out / "algebraic.proto"
     assert p.exists(), f"expected {p} to exist"
     txt = p.read_text(encoding='utf-8')
-    # basic sanity: should contain 'graph' and at least one familiar
-    # token appearing in ONNX text protos (e.g., 'node' or 'input').
-    assert "graph" in txt
-    assert ("node" in txt) or ("input" in txt)
+    # basic sanity: should contain graph indicators (either old format 'graph' keyword
+    # or new format '=>' operator) and at least one familiar token appearing in the output
+    # (e.g., 'graph', 'node', 'input', or '=>').
+    has_graph_indicator = ("graph" in txt) or ("=>" in txt)
+    has_content = ("node" in txt) or ("input" in txt) or ("=>" in txt)
+    assert has_graph_indicator, f"Expected graph indicator in proto output: {txt}"
+    assert has_content, f"Expected graph content in proto output: {txt}"

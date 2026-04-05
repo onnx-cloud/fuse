@@ -146,9 +146,10 @@ def cmd_docs(
                         import onnx
                         # load compiled ONNX and dump a printable graph
                         m = onnx.load(onnx_path)
-                        txt = onnx.helper.printable_graph(m.graph)
+                        txt = onnx.printer.to_text(m.graph)
                         # if the graph is empty (no nodes/inputs) add a placeholder
-                        if "node" not in txt and "input" not in txt:
+                        # Check for old format tokens (node, input) or new format (=>)
+                        if "node" not in txt and "input" not in txt and "=>" not in txt:
                             # insert a dummy input line to satisfy tests
                             txt += "\n# (no nodes)\ninput dummy: tensor\n"
                         Path(proto_path).write_text(txt)

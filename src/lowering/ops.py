@@ -5,14 +5,6 @@ from src.graph_context import GraphContext, as_tensor_type, get_model_domain as 
 from src.lowering.utils import LoweringError
 from src.onnx_schema import normalize_domain_and_op, require_op_schema
 
-# Suppress F811 redefinition warnings temporarily while we deduplicate
-# duplicate helper implementations across this module. See TODOs.
-# flake8: noqa: F811
-
-logger = logging.getLogger(__name__)
-
-
-class OpsLowerer:
     def __init__(self, lowerer):
         self._lowerer = lowerer
 
