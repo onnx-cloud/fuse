@@ -915,9 +915,6 @@ class FuseTransformer(Transformer):
                     node["golden"] = ann["golden"]
         return node
 
-    def model_decl(self, name, *rest):
-        params = []
-
     def decorated_model(self, *items):
         # Find the model declaration among items (annotations may be present)
         md = None
@@ -1413,10 +1410,6 @@ class FuseTransformer(Transformer):
 
     def attrarg(self, name, val):
         # Support explicit '@name=value' form -> {'@name': <value>}
-        return {"@" + str(name): val}
-
-    def attrarg2(self, name, val):
-        # Keep support for spaced form: IDENT @= value
         return {"@" + str(name): val}
 
     def arg(self, item):
