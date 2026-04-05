@@ -45,14 +45,14 @@ def cmd_lint(
             continue
 
         # missing @domain when file declares top-level nodes/models
-        has_module = any(
-            isinstance(d, dict) and d.get("type") == "meta" and d.get("name") == "module"
+        has_domain = any(
+            isinstance(d, dict) and d.get("type") == "meta" and d.get("name") == "domain"
             for d in (ast or [])
         )
         has_decl = any(
             isinstance(d, dict) and d.get("type") in ("node", "model", "export") for d in (ast or [])
         )
-        if has_decl and not has_module:
+        if has_decl and not has_domain:
             messages.append({"file": p, "kind": "warning", "message": "missing @domain declaration (recommended; required when namespacing is enabled)"})
 
         # validate imports exist when local

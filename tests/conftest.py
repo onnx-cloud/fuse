@@ -20,7 +20,11 @@ def _auto_enable_fuse_injection(request):
     # Skip for tests that explicitly validate missing/incompatible @fuse
     # semantics (they set env vars themselves as needed).
     nid = getattr(request.node, "nodeid", "") or ""
-    if request and ("test_fuse_version" in nid or "incompatible" in nid):
+    if request and (
+        "test_fuse_directives" in nid
+        or "test_fuse_version" in nid
+        or "incompatible" in nid
+    ):
         yield
         return
 

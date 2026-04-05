@@ -14,18 +14,16 @@ def make_model_with_meta(meta: dict):
     return m
 
 
-def test_artifact_path_accepts_module_alias(tmp_path):
-    # graph has a name, metadata module alias should still be warned about
+def test_artifact_path_requires_domain(tmp_path):
+    # The module alias is no longer supported; only 'domain' key is accepted
     from onnx import helper
     g = helper.make_graph([], "gname", [], [])
     m = helper.make_model(g)
     m.metadata_props.append(onnx.StringStringEntryProto(key="module", value="foo.bar"))
     m.metadata_props.append(onnx.StringStringEntryProto(key="version", value="1.0"))
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always", DeprecationWarning)
-        p = artifact_path_for(m, base=str(tmp_path))
-    assert "foo" in p
-    assert any("module" in str(warn.message) for warn in w)
+    # Should raise because module key is no longer supported
+    with pytest.raises(ValueError, match="domain"):
+        artifact_path_for(m, base=str(tmp_path))
 
 
 def test_artifact_path_prefers_domain():

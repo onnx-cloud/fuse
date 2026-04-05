@@ -311,13 +311,45 @@ class FuseLowerer:
         # Initialize type inferencer for this context
         self.type_inferencer = TypeInferencer(ctx)
 
+        # Validate @domain and @fuse directives
+        domain_decls = [
+            d for d in declarations
+            if isinstance(d, dict)
+            and d.get("type") == "meta"
+            and d.get("name") == "domain"
+        ]
+        if len(domain_decls) > 1:
+            raise ValueError(
+                f"duplicate @domain directives: {len(domain_decls)} found, only one allowed"
+            )
+
+        fuse_version_decls = [
+            d for d in declarations
+            if isinstance(d, dict)
+            and d.get("type") == "meta"
+            and d.get("name") == "fuse"
+        ]
+        if len(fuse_version_decls) > 1:
+            raise ValueError(
+                f"duplicate @fuse directives: {len(fuse_version_decls)} found, only one allowed"
+            )
+
+        # Validate @fuse version compatibility if present
+        if fuse_version_decls:
+            from src.util.graph_metadata import build_emitted_metadata
+            declared_metadata = {}
+            for d in fuse_version_decls:
+                declared_metadata["fuse"] = d.get("value")
+            # This raises RuntimeError if version is incompatible
+            build_emitted_metadata(declared_metadata)
+
         # Namespacing is enabled by default: when a source file is provided
-        # require an explicit @domain (formerly @module) declaration. If
-        # consumers want to opt out they should use the CLI flag `--no-ns`.
+        # require an explicit @domain declaration. If consumers want to opt out
+        # they should use the CLI flag `--no-ns`.
         has_domain_decl = any(
             isinstance(d, dict)
             and d.get("type") == "meta"
-            and d.get("name") in ("domain", "module")
+            and d.get("name") == "domain"
             for d in declarations
         )
         if (
@@ -661,14 +693,10 @@ class FuseLowerer:
                     int(ctx.extra_opsets.get(domain, 0)), int(version)
                 )
 
-        if decl.get("name") in ("domain", "module"):
+        if decl.get("name") == "domain":
             val = str(decl.get("value"))
             self._current_module = val
-            # always store under the canonical key
             ctx.model_metadata["domain"] = val
-            # keep legacy key too for backwards compatibility
-            if decl.get("name") == "module":
-                ctx.model_metadata.setdefault("module", val)
 
         if decl.get("name") == "id":
             self._current_module = str(decl.get("value"))

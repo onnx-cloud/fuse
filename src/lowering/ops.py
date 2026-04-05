@@ -1630,7 +1630,7 @@ class OpsLowerer:
         then_body = call.get("then")
         else_body = call.get("else")
         
-        if not cond_expr:
+        if cond_expr is None:
             # missing explicit condition - this is a user error, not an
             # opportunity to fall back to a generic ONNX call which will
             # raise a confusing schema error later.  Surface a clear message.

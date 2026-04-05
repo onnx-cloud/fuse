@@ -121,7 +121,7 @@ def cmd_docs(
                     # Gather simple metadata from AST for frontmatter
                     domain = ""
                     for decl in ast:
-                        if isinstance(decl, dict) and decl.get("type") == "meta" and decl.get("name") in ("domain", "module"):
+                        if isinstance(decl, dict) and decl.get("type") == "meta" and decl.get("name") == "domain":
                             domain = str(decl.get("value"))
                             break
                     title = target_name.capitalize() if target_name else ""

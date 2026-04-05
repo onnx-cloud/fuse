@@ -10,17 +10,12 @@ import os
 import re
 from pathlib import Path
 from typing import Optional
-import warnings
 
 
 def _get_domain_from_meta(meta: dict) -> str | None:
     if not isinstance(meta, dict):
         return None
-    dom = meta.get("domain")
-    if dom is None and "module" in meta:
-        warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
-        dom = meta.get("module")
-    return dom
+    return meta.get("domain")
 
 import onnx  # noqa: E402
 

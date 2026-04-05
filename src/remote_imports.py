@@ -111,3 +111,15 @@ class RemoteImportManager:
         print(
             f"[INFO] Imported {import_decl['name']} variant={variant_name} as {alias}"
         )
+
+
+def fetch_remote_model(url: str) -> bytes:
+    """Fetch a remote ONNX model from a URL and return its bytes.
+    
+    This module-level function provides a mockable entry point for testing
+    remote imports. It downloads the model to a cache and returns raw bytes.
+    """
+    cache = ImportCache()
+    cached_path = cache.fetch(url)
+    with open(cached_path, 'rb') as f:
+        return f.read()

@@ -29,7 +29,7 @@ WEIGHTS: "weights"
 // Inline attribute assignment token: e.g., gamma@=LN1_gamma
 ATTR_ASSIGN: /[A-Za-z_][A-Za-z0-9_]*@=[A-Za-z_][A-Za-z0-9_]*/
 meta_opset: "@opset" IDENT NUMBER
-meta_module: ("@domain" | "@module") IDENT
+meta_module: "@domain" IDENT
 meta_kv: "@meta" IDENT "=" value_expr
 meta_id: "@id" STRING
 

@@ -11,14 +11,10 @@ import warnings
 
 
 def _get_domain_from_meta(meta: dict) -> str | None:
-    """Return domain string accepting deprecated 'module' key."""
+    """Return domain string from metadata."""
     if not isinstance(meta, dict):
         return None
-    dom = meta.get("domain")
-    if dom is None and "module" in meta:
-        warnings.warn("metadata key 'module' is deprecated; use 'domain' instead", DeprecationWarning)
-        dom = meta.get("module")
-    return dom
+    return meta.get("domain")
 from typing import Any, Dict, List, Optional  # noqa: E402
 
 import onnx  # noqa: E402

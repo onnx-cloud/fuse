@@ -308,9 +308,9 @@ def sanitize_ast(ast: List[Any], opset: int = None, strict: bool = False) -> Dic
                 errors.append(SanityIssue("error", f"Duplicate declaration of {node.get('type')} named '{node.get('name')}'", node))
 
     fn_count = len([n for n in ast if isinstance(n, dict) and n.get("type") == "fn"])
-    has_ns = _find_meta(ast, "namespace") or _find_meta(ast, "module") or _find_meta(ast, "domain")
+    has_ns = _find_meta(ast, "namespace") or _find_meta(ast, "domain")
     if fn_count > 1 and not has_ns:
-        warnings.append(SanityIssue("warning", "Multiple top-level functions declared with no @domain/@domain/@domain; consider adding module metadata to avoid naming collisions"))
+        warnings.append(SanityIssue("warning", "Multiple top-level functions declared with no @domain; consider adding domain metadata to avoid naming collisions"))
 
     for node in ast:
         if isinstance(node, dict) and node.get("type") in ("fn", "node", "model", "export"):

@@ -2,7 +2,6 @@
 
 import pytest
 from src.parser import fuse_parser
-from src.errors import E030_LoweringError
 from src.lowering.main import FuseLowerer
 from src.graph_context import GraphContext
 from src.fuse import load_manifest, parse_version
@@ -49,12 +48,12 @@ fn f() -> f32 {
     1.0
 }
 """
-        # Should raise ValueError or LoweringError when validated
+        # Should raise ValueError or RuntimeError when validated
         ast = fuse_parser.parse(src)
         lowerer = FuseLowerer()
         
         # The lowering phase should validate and reject
-        with pytest.raises((ValueError, E030_LoweringError)):
+        with pytest.raises((ValueError, RuntimeError)):
             lowerer.lower(ast)
 
     def test_invalid_fuse_version_major_too_high(self):
@@ -71,12 +70,12 @@ fn f() -> f32 {
         ast = fuse_parser.parse(src)
         lowerer = FuseLowerer()
         
-        with pytest.raises((ValueError, E030_LoweringError)):
+        with pytest.raises((ValueError, RuntimeError)):
             lowerer.lower(ast)
 
 
 class TestDuplicateDomainValidation:
-    """Test duplicate @domain/@module directive detection."""
+    """Test duplicate @domain directive detection."""
 
     def test_duplicate_domain_directives_raises(self):
         """Two @domain directives should raise an error."""
@@ -97,10 +96,12 @@ fn f() -> f32 {
                 lowerer.lower(ast)
 
     def test_duplicate_module_directives_raises(self):
-        """Two @module directives (deprecated alias) should raise an error."""
+        """Two @domain directives (using the former @module alias) should raise an error."""
+        # This test is now the same as test_duplicate_domain_directives_raises
+        # since @module is no longer supported
         src = """
-@module test
-@module test2
+@domain test
+@domain test2
 
 fn f() -> f32 {
     1.0
@@ -109,12 +110,13 @@ fn f() -> f32 {
         # Should raise when parsed or lowered
         with pytest.raises(ValueError, match="duplicate|multiple"):
             ast = fuse_parser.parse(src)
+            # If parsing succeeds, lowering should catch it
             if ast:
                 lowerer = FuseLowerer()
                 lowerer.lower(ast)
 
     def test_duplicate_domain_and_module_raises(self):
-        """@domain and @module (alias) should raise when both present."""
+        """@module is no longer supported; using it should raise a parse error."""
         src = """
 @domain test
 @module test2
@@ -123,12 +125,10 @@ fn f() -> f32 {
     1.0
 }
 """
-        # Should raise when parsed or lowered
-        with pytest.raises(ValueError, match="duplicate|multiple"):
+        # Should raise at parse time since @module is no longer valid
+        from src.parser import ParseError
+        with pytest.raises(ParseError):
             ast = fuse_parser.parse(src)
-            if ast:
-                lowerer = FuseLowerer()
-                lowerer.lower(ast)
 
     def test_single_domain_allowed(self):
         """Single @domain directive should be accepted."""

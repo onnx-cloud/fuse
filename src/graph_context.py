@@ -79,6 +79,8 @@ DTYPE_MAP: Dict[str, int] = {
     "u64": TensorProto.UINT64,
     "uint64": TensorProto.UINT64,
     "bool": TensorProto.BOOL,
+    "str": TensorProto.STRING,
+    "string": TensorProto.STRING,
     "complex64": TensorProto.COMPLEX64,
     "complex128": TensorProto.COMPLEX128,
 }
@@ -93,24 +95,14 @@ def fuse_dtype_to_onnx(dtype: str) -> int:
 # helper moved from lowering.main to avoid circular imports
 
 def get_model_domain(ctx: "GraphContext") -> str | None:
-    """Return the model's declared domain/key, accepting deprecated module.
+    """Return the model's declared domain key.
 
-    Emits a DeprecationWarning when only 'module' key is present.  Useful
-    for any code needing a stable domain lookup without depending on
+    Useful for any code needing a stable domain lookup without depending on
     lowering.main which imports ops.
     """
     if not ctx or not isinstance(ctx, GraphContext):
         return None
-    dom = ctx.model_metadata.get("domain")
-    if dom is None and "module" in ctx.model_metadata:
-        import warnings
-
-        warnings.warn(
-            "metadata key 'module' is deprecated; please use 'domain' instead",
-            DeprecationWarning,
-        )
-        dom = ctx.model_metadata.get("module")
-    return dom
+    return ctx.model_metadata.get("domain")
 
 
 def onnx_dtype_to_fuse(dtype: int) -> str:
