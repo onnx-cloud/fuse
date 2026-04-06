@@ -313,6 +313,44 @@ class TestLayerNormGradient:
         assert any("W_ln" in n and "grad" in n for n in output_names)
         assert any("B_ln" in n and "grad" in n for n in output_names)
 
+class TestGeluGradient:
+    """Test GELU activation gradient computation."""
+
+    def test_gelu_basic_gradient(self):
+        """Test basic GELU gradient computation."""
+        src = """
+        node gelu_model(X: f32[2,4,8]) -> f32 {
+          Y = Gelu(X)
+          loss = ReduceMean(Y)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        # Verify model compiles and has proper outputs
+        assert len(model.graph.output) > 0
+        output_names = [o.name for o in model.graph.output]
+        assert any("loss" in n for n in output_names)
+
+    def test_gelu_in_transformer(self):
+        """Test GELU as part of transformer MLP block."""
+        src = """
+        @train weight W_mlp: f32[8,16]
+        node transformer_mlp(X: f32[2,4,8]) -> f32 {
+          dense = MatMul(X, W_mlp)
+          activated = Gelu(dense)
+          loss = ReduceMean(activated)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("W_mlp" in n and "grad" in n for n in output_names)
 
 class TestBatchNormGradient:
     """Test BatchNormalization gradient computation."""
