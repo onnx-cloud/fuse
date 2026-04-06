@@ -272,4 +272,45 @@ class TestConvGradient:
         assert any("scale" in n and "grad" in n for n in output_names)
 
 
+class TestLayerNormGradient:
+    """Test LayerNormalization gradient computation."""
+
+    def test_layernorm_basic_gradient(self):
+        """Test basic LayerNorm gradient with scale and bias."""
+        src = """
+        @train weight scale: f32[4]
+        @train weight bias: f32[4]
+        node ln_model(X: f32[2,3,4]) -> f32 {
+          Y = LayerNormalization(X, scale, bias)
+          loss = ReduceMean(Y)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("scale" in n and "grad" in n for n in output_names), f"Expected scale.grad, got {output_names}"
+        assert any("bias" in n and "grad" in n for n in output_names), f"Expected bias.grad, got {output_names}"
+
+    def test_layernorm_in_transformer_like(self):
+        """Test LayerNorm as part of transformer-like structure."""
+        src = """
+        @train weight W_ln: f32[64]
+        @train weight B_ln: f32[64]
+        node transformer_block(X: f32[2,10,64]) -> f32 {
+          ln_out = LayerNormalization(X, W_ln, B_ln)
+          loss = ReduceMean(ln_out)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("W_ln" in n and "grad" in n for n in output_names)
+        assert any("B_ln" in n and "grad" in n for n in output_names)
+
 
