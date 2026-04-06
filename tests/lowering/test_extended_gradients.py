@@ -314,3 +314,47 @@ class TestLayerNormGradient:
         assert any("B_ln" in n and "grad" in n for n in output_names)
 
 
+class TestBatchNormGradient:
+    """Test BatchNormalization gradient computation."""
+
+    def test_batchnorm_basic_gradient(self):
+        """Test basic BatchNorm gradient with scale and bias."""
+        src = """
+        @train weight scale: f32[16]
+        @train weight bias: f32[16]
+        node bn_model(X: f32[2,16,8,8]) -> f32 {
+          Y = BatchNormalization(X, scale, bias)
+          loss = ReduceMean(Y)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("scale" in n and "grad" in n for n in output_names), f"Expected scale.grad, got {output_names}"
+        assert any("bias" in n and "grad" in n for n in output_names), f"Expected bias.grad, got {output_names}"
+
+    def test_batchnorm_in_cnn(self):
+        """Test BatchNorm as part of CNN structure: Conv -> BatchNorm -> ReLU."""
+        src = """
+        @train weight W: f32[16,3,3,3]
+        @train weight BN_scale: f32[16]
+        @train weight BN_bias: f32[16]
+        node cnn_block(X: f32[2,3,32,32]) -> f32 {
+          conv_out = Conv(X, W)
+          bn_out = BatchNormalization(conv_out, BN_scale, BN_bias)
+          loss = ReduceMean(bn_out)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("W" in n and "grad" in n for n in output_names)
+        assert any("BN_scale" in n and "grad" in n for n in output_names)
+        assert any("BN_bias" in n and "grad" in n for n in output_names)
+
