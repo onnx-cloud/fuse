@@ -1427,22 +1427,17 @@ class OpsLowerer:
             if idx < len(input_types):
                 typ = input_types[idx]
             sub_ctx.add_param({"name": name, "type_decl": typ})
-        # try to deduce candidate names from any identifiers present in the
-        # body return expressions (common patterns use `i`, `keep`, etc.).
-        if isinstance(body_ast, dict):
-            for ret in body_ast.get("returns", []):
-                if isinstance(ret, str):
-                    param_names.append(ret)
-                elif isinstance(ret, dict) and "call" not in ret:
-                    # simple literal or identifier
-                    first_key = next(iter(ret), None)
-                    if isinstance(first_key, str) and not first_key.startswith("@"):
-                        param_names.append(first_key)
-        # pad or trim to length of inputs
+        # Note: Do NOT try to deduce parameter names from return expressions -
+        # those are output values, not input parameters. Use default names only.
+        # The loop body implicitly refers to iteration counter, condition,
+        # and state values; we use conventional default names: `i`, `keep`, `state_in`
         default_names = ["i", "keep", "state_in"]
+        param_names = []
         for idx in range(len(inputs)):
-            if idx >= len(param_names) or not param_names[idx]:
-                param_names.append(default_names[idx] if idx < len(default_names) else f"arg{idx}")
+            param_names.append(
+                default_names[idx] if idx < len(default_names) else f"arg{idx}"
+            )
+        
         # register parameters in body_env stack and also record them as
         # subgraph inputs via ``sub_ctx.add_param``
         for i, inp_name in enumerate(inputs):
@@ -1451,6 +1446,9 @@ class OpsLowerer:
             # Add to sub_ctx inputs type info if known
             if i < len(input_types) and input_types[i]:
                 sub_ctx.value_types[inp_name] = input_types[i]
+            # Also add the type for the local parameter name so lookups work
+            if i < len(input_types) and input_types[i]:
+                sub_ctx.value_types[pname] = input_types[i]
             # create an input param with the selected local name and type
             _add_body_param(i, pname)
         

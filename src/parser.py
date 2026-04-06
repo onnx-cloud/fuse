@@ -948,6 +948,9 @@ class FuseTransformer(Transformer):
                         md.setdefault("input", {}).update(v["input"])
                     if "output" in v:
                         md.setdefault("output", {}).update(v["output"])
+            # Apply proof annotation to models (e.g., @proof graph test() {...})
+            if "proof_annot" in ann:
+                md["type"] = "proof"
         return md
 
     def model_decl(self, name, *rest):

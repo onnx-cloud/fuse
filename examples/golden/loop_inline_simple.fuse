@@ -3,7 +3,7 @@
 @domain examples.golden
 
 # Simple inline loop example
-graph simple_loop_test(max_iter: i64) -> f32 {
+graph loop_inline_simple(max_iter: i64) -> f32 {
     # Loop body takes (iteration, condition, state)
     # and returns (next_iter, next_cond, next_state)
     result = loop (max_iter, true, 0.0) {

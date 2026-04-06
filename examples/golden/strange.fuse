@@ -4,7 +4,7 @@
 @meta author = "onnx.cloud"
 
 # Minimal general strange-loop graph using inline loop body
-graph strange_loop(
+graph strange(
     max_iters: i64 = 8
 ) -> f32 {
 

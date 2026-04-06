@@ -177,11 +177,16 @@ def get_output_path(
 
 
 def _filter_exportable_graphs(ast):
-    """Filter an AST to include only top-level `graph` or `model` declarations."""
+    """Filter an AST to include only top-level `graph` or `model` declarations.
+    
+    Excludes `proof` type declarations (from @proof decorator), which are test
+    graphs meant for verification, not models meant for export.
+    """
     return [
         d
         for d in ast
-        if isinstance(d, dict) and d.get("type") in ("graph", "model")
+        if isinstance(d, dict) 
+        and d.get("type") in ("graph", "model")
     ]
 
 
