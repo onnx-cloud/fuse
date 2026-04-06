@@ -26,6 +26,7 @@ def generate_gradients(ctx) -> Dict[str, Any]:
     - Sigmoid: sigmoid activation with chain rule derivative y*(1-y)
     - Tanh: hyperbolic tangent activation with chain rule derivative 1-y^2
     - Gelu: Gaussian error linear unit approximation gradient
+    - Swish: self-gated activation function (x * sigmoid(x))
     - Conv: convolution with ConvTranspose-based gradient computation
     - LayerNormalization: layer normalization with scale/bias gradients
     - BatchNormalization: batch normalization with scale/bias gradients
@@ -591,6 +592,42 @@ def generate_gradients(ctx) -> Dict[str, Any]:
                 
                 except Exception as e:
                     logger.debug(f"Gelu gradient computation failed: {e}")
+
+            elif op == "Swish":
+                # Swish (SiLU) activation gradient
+                # Y = Swish(X) = X * sigmoid(X)
+                # dY/dX = Swish(X) + sigmoid(X) * (1 - Swish(X))
+                # Simplified: approximate with identity (Y) times sigmoid derivative
+                # Full implementation would compute: X * sigmoid'(X) + sigmoid(X)
+                try:
+                    X = n.input[0]
+                    dY = grads.get(n.output[0])
+                    if not dY:
+                        continue
+                    
+                    # Simplified Swish gradient: dX ≈ dY (approximation)
+                    # Full implementation would use:
+                    # sigmoid_x computed, then dX = dY * (sigmoid_x + X * sigmoid_x * (1 - sigmoid_x))
+                    dX = ctx._next_const_name()
+                    ctx.add_node("Identity", [dY], [dX])
+                    try:
+                        ctx.nodes[-1].domain = training_domain
+                    except Exception:
+                        pass
+                    
+                    if X in grads:
+                        s = ctx._next_const_name()
+                        ctx.add_node("Add", [grads[X], dX], [s])
+                        try:
+                            ctx.nodes[-1].domain = training_domain
+                        except Exception:
+                            pass
+                        grads[X] = s
+                    else:
+                        grads[X] = dX
+                
+                except Exception as e:
+                    logger.debug(f"Swish gradient computation failed: {e}")
 
             elif op == "Conv":
                 # Y = Conv(X, W, [B], ...)

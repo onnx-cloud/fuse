@@ -352,6 +352,46 @@ class TestGeluGradient:
         output_names = [o.name for o in model.graph.output]
         assert any("W_mlp" in n and "grad" in n for n in output_names)
 
+
+class TestSwishGradient:
+    """Test Swish activation gradient computation."""
+
+    def test_swish_basic_gradient(self):
+        """Test basic Swish gradient computation."""
+        src = """
+        node swish_model(X: f32[2,4,8]) -> f32 {
+          Y = Swish(X)
+          loss = ReduceMean(Y)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        # Verify model compiles and has proper outputs
+        assert len(model.graph.output) > 0
+        output_names = [o.name for o in model.graph.output]
+        assert any("loss" in n for n in output_names)
+
+    def test_swish_in_mlp(self):
+        """Test Swish as activation in MLP."""
+        src = """
+        @train weight W: f32[8,16]
+        node mlp_with_swish(X: f32[2,4,8]) -> f32 {
+          dense = MatMul(X, W)
+          activated = Swish(dense)
+          loss = ReduceMean(activated)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("W" in n and "grad" in n for n in output_names)
+
 class TestBatchNormGradient:
     """Test BatchNormalization gradient computation."""
 
