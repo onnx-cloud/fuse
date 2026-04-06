@@ -392,6 +392,46 @@ class TestSwishGradient:
         output_names = [o.name for o in model.graph.output]
         assert any("W" in n and "grad" in n for n in output_names)
 
+
+class TestEluGradient:
+    """Test ELU activation gradient computation."""
+
+    def test_elu_basic_gradient(self):
+        """Test basic ELU gradient computation."""
+        src = """
+        node elu_model(X: f32[2,4,8]) -> f32 {
+          Y = Elu(X)
+          loss = ReduceMean(Y)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        # Verify model compiles and has proper outputs
+        assert len(model.graph.output) > 0
+        output_names = [o.name for o in model.graph.output]
+        assert any("loss" in n for n in output_names)
+
+    def test_elu_in_network(self):
+        """Test ELU as activation in a dense network."""
+        src = """
+        @train weight W: f32[8,16]
+        node network_with_elu(X: f32[2,4,8]) -> f32 {
+          dense = MatMul(X, W)
+          activated = Elu(dense)
+          loss = ReduceMean(activated)
+          return loss
+        }
+        """
+        ast = fuse_parser.parse(src)
+        lowerer = FuseLowerer(emit_training=True)
+        model = lowerer.lower(ast)
+        
+        output_names = [o.name for o in model.graph.output]
+        assert any("W" in n and "grad" in n for n in output_names)
+
 class TestBatchNormGradient:
     """Test BatchNormalization gradient computation."""
 
