@@ -66,13 +66,14 @@ def cmd_docs(
     filter_re: Optional[str] = None,
 ):
     """Generate documentation for a given .fuse file."""
+    emit_ast = ast  # avoid shadowing with parsed AST variable
     results = []
     files = cli_helpers.find_fuse_files(files)
 
     for f in files:
         try:
-            ast = cli_helpers.parse_fuse_file(f)
-            exportable_graphs = cli_helpers.get_exportable_graphs(ast)
+            parsed_ast = cli_helpers.parse_fuse_file(f)
+            exportable_graphs = cli_helpers.get_exportable_graphs(parsed_ast)
 
             # If no specific graphs are exportable, or if the file contains only `fn`s,
             # we may still want to generate docs for the whole file as a single unit.
@@ -109,8 +110,6 @@ def cmd_docs(
                     continue
 
                 # Now generate docs from the compiled ONNX model
-                # (This part of the logic might need to be adapted depending on how
-                # docs are generated from an ONNX file vs. a Fuse AST)
                 p = Path(f)
                 out_paths = []
 
@@ -120,7 +119,7 @@ def cmd_docs(
                     )
                     # Gather simple metadata from AST for frontmatter
                     domain = ""
-                    for decl in ast:
+                    for decl in parsed_ast:
                         if isinstance(decl, dict) and decl.get("type") == "meta" and decl.get("name") == "domain":
                             domain = str(decl.get("value"))
                             break
@@ -138,6 +137,55 @@ def cmd_docs(
                         txt += f"# {title}\n\n"
                     Path(md_path).write_text(txt)
                     out_paths.append(md_path)
+
+                if dot:
+                    dot_path = cli_helpers.get_output_path(
+                        f, target_name, out_dir=out_dir, flat=True, suffix=".dot"
+                    )
+                    try:
+                        import onnx as _onnx
+                        from src.graphviz import model_to_dot, write_dot
+                        m = _onnx.load(onnx_path)
+                        dot_text = model_to_dot(m)
+                        write_dot(dot_text, dot_path)
+                        out_paths.append(dot_path)
+                        if render:
+                            from src.graphviz import render_dot_safe
+                            svg_path = str(Path(dot_path).with_suffix(".svg"))
+                            render_dot_safe(dot_text, svg_path)
+                    except Exception:
+                        pass
+
+                if emit_ast:
+                    ast_path = cli_helpers.get_output_path(
+                        f, target_name, out_dir=out_dir, flat=True, suffix=".ast.json"
+                    )
+                    try:
+                        import json
+                        Path(ast_path).parent.mkdir(parents=True, exist_ok=True)
+                        Path(ast_path).write_text(
+                            json.dumps(parsed_ast, indent=2, sort_keys=True, default=str) + "\n",
+                            encoding="utf-8",
+                        )
+                        out_paths.append(ast_path)
+                    except Exception:
+                        pass
+
+                if ttl:
+                    ttl_path = cli_helpers.get_output_path(
+                        f, target_name, out_dir=out_dir, flat=True, suffix=".ttl"
+                    )
+                    try:
+                        import onnx as _onnx
+                        from src.export.ttl import model_to_ttl
+                        m = _onnx.load(onnx_path)
+                        ttl_text = model_to_ttl(m)
+                        Path(ttl_path).parent.mkdir(parents=True, exist_ok=True)
+                        Path(ttl_path).write_text(ttl_text, encoding="utf-8")
+                        out_paths.append(ttl_path)
+                    except Exception:
+                        pass
+
                 if proto:
                     proto_path = cli_helpers.get_output_path(
                         f, target_name, out_dir=out_dir, flat=True, suffix=".proto"

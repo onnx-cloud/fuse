@@ -85,6 +85,7 @@ def compile_file(fuse_path: Path, out_dir: Path, trace: bool) -> None:
         "-o",
         str(out_dir),
         "--docs",
+        "--proto",
     ]
     run(cmd, f"compile {name}", trace)
 

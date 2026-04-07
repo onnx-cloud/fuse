@@ -484,9 +484,7 @@ class FuseLowerer:
                 self.import_manager.fuse_import(ctx, decl, refresh=refresh)
             elif kind == "type_alias":
                 self.type_aliases[decl["name"]] = decl.get("type_decl")
-            elif kind == "proof":
-                continue
-            elif kind in ("node", "model", "export"):
+            elif kind in ("node", "model", "export", "proof"):
                 # Special-case user-defined nodes/functions: when the caller
                 # requested function inlining we lower their bodies inline as
                 # before.  When `inline_functions` is False we instead convert
@@ -506,9 +504,9 @@ class FuseLowerer:
                     continue
 
                 # If a per-call target model was provided, skip unrelated
-                # top-level `model` declarations to support emitting one
+                # top-level `model` and `proof` declarations to support emitting one
                 # ONNX per declared graph inside the source file.
-                if getattr(self, "_target_model", None) is not None and decl.get("type") == "model" and decl.get("name") != self._target_model:
+                if getattr(self, "_target_model", None) is not None and decl.get("type") in ("model", "proof") and decl.get("name") != self._target_model:
                     logger.debug("skipping model %s due to target filter %s", decl.get("name"), self._target_model)
                     continue
 
@@ -591,7 +589,7 @@ class FuseLowerer:
                     outputs_after = set(ctx.outputs.keys())
                     added_inputs = inputs_after - inputs_before
                     added_outputs = outputs_after - outputs_before
-                    if decl.get("type") == "model":
+                    if decl.get("type") in ("model", "proof"):
                         has_explicit_model = True
                         model_inputs.update(added_inputs)
                         model_outputs.update(added_outputs)
@@ -863,7 +861,7 @@ class FuseLowerer:
             ctx.scope_prefix = scope
             ctx.scope_display = scope
 
-        if isinstance(decl, dict) and decl.get("type") == "model":
+        if isinstance(decl, dict) and decl.get("type") in ("model", "proof"):
             # Only set model '@id' metadata when explicitly provided by the
             # author via an `@id` pragma. Do not auto-inject a scope-derived
             # id (e.g., module.name) as this should be a user-provided stable
@@ -1071,6 +1069,9 @@ class FuseLowerer:
                 i += 1
             body = normalized_body
 
+        # Track declaration type in environment for statement handlers
+        env["__decl_type__"] = decl.get("type")
+
         try:
             for stmt in body:
                 try:
@@ -1103,12 +1104,22 @@ class FuseLowerer:
         multi = env.get("__last_multi_return__")
         if multi:
             outputs_meta = decl.get("output") or {}
+            # For proof graphs, use the original return variable names for outputs
+            proof_return_names = env.get("__proof_return_names__") if decl.get("type") == "proof" else None
             for idx, (nm, typ) in enumerate(multi):
-                internal = (
-                    nm
-                    if isinstance(nm, str)
-                    else f"{decl.get('name')}_out_{idx}"
-                )
+                # Use the original proof graph return variable name if available
+                if proof_return_names and idx < len(proof_return_names) and proof_return_names[idx]:
+                    desired_name = proof_return_names[idx]
+                    # Create an Identity node to map the actual output to the desired name
+                    identity_output = desired_name
+                    ctx.add_node("Identity", [nm], [identity_output], name=None)
+                    internal = identity_output
+                else:
+                    internal = (
+                        nm
+                        if isinstance(nm, str)
+                        else f"{decl.get('name')}_out_{idx}"
+                    )
                 out_type = as_tensor_type(
                     (
                         decl.get("ret_type")[idx]
@@ -1284,7 +1295,7 @@ class FuseLowerer:
         # avoids emitting a synthetic Identity node that merely renames the
         # internal result to the declaration name (e.g., `model`). Using the
         # internal name lets `add_output` qualify it deterministically.
-        if decl.get("type") == "model":
+        if decl.get("type") in ("model", "proof"):
             if last_value:
                 graph_output_internal = last_value
             elif decl.get("params"):
@@ -1433,10 +1444,17 @@ class FuseLowerer:
             if "return" in stmt:
                 if isinstance(stmt.get("return"), (list, tuple)):
                     lowered = []
+                    # For proof graphs, track original variable names to use as output names
+                    original_names = []
+                    is_proof = env.get("__decl_type__") == "proof"
                     for e in stmt.get("return"):
+                        original_names.append(e if isinstance(e, str) else None)
                         n, t = self._lower_expr(e, ctx, env, types)
                         lowered.append((n, t))
                     env["__last_multi_return__"] = lowered
+                    # Store original names for proof graphs so we can use them for output naming
+                    if is_proof:
+                        env["__proof_return_names__"] = original_names
                     return (lowered[0][0] if lowered else None), (
                         lowered[0][1] if lowered else None
                     )
